@@ -12,9 +12,9 @@ export default async function LoginPage() {
 
   return (
     <AuthShell
-      eyebrow="1. Landing / Login"
-      title="Acesso seguro ao cockpit de suporte."
-      description="Sessao autenticada com JWT, pronta para historico de atendimento, chamados e operacao assistida por IA."
+      eyebrow="Acesso ao sistema"
+      title="Entre no Intelix para continuar."
+      description="Acesse o ambiente do agente para utilizar o chat, consultar informações e acompanhar os recursos disponíveis para o seu usuário."
     >
       <LoginForm />
     </AuthShell>
