@@ -3,24 +3,17 @@ import {
   ArrowRight,
   BrainCircuit,
   DatabaseZap,
-  Gauge,
-  Sparkles,
+  MessageSquareText,
+  ShieldCheck,
 } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const capabilities = [
-  "IA Avancada",
-  "Agentes Autonomos",
-  "RAG Context",
-  "Resposta Rapida",
-];
-
-const quickStats = [
-  { label: "Precisao RAG", value: "98.7%" },
-  { label: "Tempo medio", value: "< 2s" },
-  { label: "Chamados tratados", value: "127" },
+  "Inteligência Artificial",
+  "Retrieval-Augmented Generation",
+  "Base de conhecimento especializada",
 ];
 
 export function LandingHero() {
@@ -32,7 +25,7 @@ export function LandingHero() {
             <div className="flex items-center justify-between gap-4">
               <BrandMark inverted />
               <div className="hidden rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm text-white/72 md:block">
-                Agente autonomo de IA para suporte tecnico empresarial
+                Inteligência Artificial aplicada ao suporte técnico
               </div>
             </div>
 
@@ -50,68 +43,56 @@ export function LandingHero() {
 
               <div className="space-y-4">
                 <p className="max-w-xl text-sm leading-7 text-white/74 md:text-base">
-                  Sistema moderno de suporte tecnico para ERP, preparado para
-                  atendimento orientado por contexto, memoria conversacional e
-                  orquestracao multiagente.
+                  Um agente de Inteligência Artificial desenvolvido para auxiliar
+                  usuários na resolução de dúvidas operacionais relacionadas a
+                  sistemas de gestão empresarial.
                 </p>
                 <h1 className="max-w-3xl text-4xl leading-tight font-semibold md:text-5xl lg:text-[66px] lg:leading-[1.02]">
-                  O cockpit de suporte que une atendimento humano, RAG e IA
-                  operacional.
+                  Suporte inteligente para sistemas de gestão.
                 </h1>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-[28px] border border-white/10 bg-white/7 p-5">
                   <BrainCircuit className="mb-4 size-7 text-cyan-200" />
-                  <p className="text-base font-semibold">Triagem inteligente</p>
+                  <p className="text-base font-semibold">Respostas contextualizadas</p>
                   <p className="mt-2 text-sm leading-6 text-white/70">
-                    Classificacao automatica de chamados e sugestao imediata de
-                    resolucao.
+                    O agente utiliza informações recuperadas da base de
+                    conhecimento para apoiar a geração das respostas.
                   </p>
                 </div>
                 <div className="rounded-[28px] border border-white/10 bg-white/7 p-5">
                   <DatabaseZap className="mb-4 size-7 text-cyan-200" />
-                  <p className="text-base font-semibold">Base viva</p>
+                  <p className="text-base font-semibold">Base de conhecimento</p>
                   <p className="mt-2 text-sm leading-6 text-white/70">
-                    Conhecimento indexado para consultas de ERP, rejeicoes
-                    fiscais e procedimentos internos.
+                    Documentos e informações são indexados para permitir
+                    recuperação de conteúdo relevante durante as consultas.
                   </p>
                 </div>
                 <div className="rounded-[28px] border border-white/10 bg-white/7 p-5">
-                  <Gauge className="mb-4 size-7 text-cyan-200" />
-                  <p className="text-base font-semibold">Operacao escalavel</p>
+                  <MessageSquareText className="mb-4 size-7 text-cyan-200" />
+                  <p className="text-base font-semibold">Interação natural</p>
                   <p className="mt-2 text-sm leading-6 text-white/70">
-                    Historico unificado, prioridade de fila e pronto para novas
-                    integracoes.
+                    Perguntas podem ser realizadas em linguagem natural por meio
+                    da interface de conversação do Intelix.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="mt-auto flex flex-col gap-4 pt-10 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href="/login"
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "h-12 rounded-2xl px-6",
-                  )}
-                >
-                  Acessar Plataforma
-                  <ArrowRight className="size-4" />
-                </Link>
-                <Link
-                  href="/cadastro"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "h-12 rounded-2xl border-white/20 bg-white/8 px-6 text-white hover:bg-white/12",
-                  )}
-                >
-                  Solicitar acesso
-                </Link>
-              </div>
+              <Link
+                href="/login"
+                className={cn(
+                  buttonVariants({ size: "lg" }),
+                  "h-12 rounded-2xl px-6",
+                )}
+              >
+                Acessar o Intelix
+                <ArrowRight className="size-4" />
+              </Link>
               <div className="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/74">
-                Fluxo pronto para OpenAI SDK, LangChain e vector database
+                Agente de IA com recuperação de informações via RAG
               </div>
             </div>
           </div>
@@ -122,60 +103,73 @@ export function LandingHero() {
             <div className="flex items-center justify-between gap-3">
               <BrandMark compact />
               <div className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">
-                Demo pronta
+                Intelix Agent
               </div>
             </div>
 
             <div className="mt-10 space-y-4">
               <p className="text-sm font-semibold tracking-[0.24em] text-primary/80 uppercase">
-                Inteligencia aplicada ao suporte
+                Inteligência aplicada ao suporte
               </p>
               <h2 className="text-3xl leading-tight font-semibold text-foreground md:text-[40px]">
-                Atendimento mais rapido, documentado e preparado para escalar.
+                Conhecimento especializado para apoiar cada atendimento.
               </h2>
               <p className="max-w-xl text-sm leading-7 text-muted-foreground md:text-base">
-                A estrutura fullstack foi organizada para autenticao, historico
-                de conversas, CRUD de chamados, base de conhecimento e futura
-                expansao com agentes especializados.
+                O Intelix combina modelos de linguagem e recuperação de
+                informações para consultar uma base de conhecimento antes de
+                construir respostas relacionadas ao contexto de sistemas ERP.
               </p>
             </div>
           </div>
 
           <div className="mt-8 space-y-5">
-            <div className="grid gap-3 md:grid-cols-3">
-              {quickStats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-[24px] border border-border/70 bg-muted/55 p-4"
-                >
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="mt-2 text-2xl font-semibold text-foreground">
-                    {stat.value}
-                  </p>
+            <div className="grid gap-3">
+              <div className="rounded-[24px] border border-border/70 bg-muted/55 p-5">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-2xl bg-primary/12 p-3 text-primary">
+                    <DatabaseZap className="size-6" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      Recuperação de conhecimento
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      O RAG localiza informações relevantes nos documentos
+                      indexados e fornece esse contexto ao modelo de linguagem.
+                    </p>
+                  </div>
                 </div>
-              ))}
+              </div>
+
+              <div className="rounded-[24px] border border-border/70 bg-muted/55 p-5">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-2xl bg-primary/12 p-3 text-primary">
+                    <ShieldCheck className="size-6" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      Respostas fundamentadas
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      Quando a base não oferece contexto suficiente, o agente
+                      evita apresentar uma resposta como informação confirmada.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="teal-outline rounded-[30px] border border-primary/14 bg-card p-6">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-primary/12 p-3 text-primary">
-                  <Sparkles className="size-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Credenciais de teste
-                  </p>
-                  <p className="text-lg font-semibold text-foreground">
-                    analista@intelix.ai
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 rounded-[22px] bg-muted/55 p-4 font-mono text-sm text-muted-foreground">
-                Senha: Intelix@2026
-              </div>
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                O projeto sobe em modo demo mesmo sem banco configurado, mas
-                toda a camada Prisma/PostgreSQL ja esta pronta para producao.
+              <p className="text-sm font-semibold tracking-[0.18em] text-primary/80 uppercase">
+                Intelix Agent
+              </p>
+              <p className="mt-3 text-xl font-semibold text-foreground">
+                Agente autônomo de Inteligência Artificial para suporte técnico
+                em sistemas de gestão empresarial.
+              </p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Desenvolvido como Trabalho de Conclusão de Curso em Ciência da
+                Computação.
               </p>
             </div>
           </div>
