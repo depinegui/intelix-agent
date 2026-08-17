@@ -1,25 +1,25 @@
 import type { ReactNode } from "react";
-import { BrainCircuit, DatabaseZap, ShieldCheck } from "lucide-react";
+import { BrainCircuit, DatabaseZap, ShieldCheck, Sparkles } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 
 const bullets = [
   {
-    icon: BrainCircuit,
-    title: "Triagem por IA",
+    icon: DatabaseZap,
+    title: "Base de conhecimento",
     description:
-      "Classificacao automatica de contexto, urgencia e caminho ideal de atendimento.",
+      "Conteúdos indexados apoiam a recuperação das informações utilizadas pelo agente.",
   },
   {
-    icon: DatabaseZap,
-    title: "RAG corporativo",
+    icon: BrainCircuit,
+    title: "Contexto para a IA",
     description:
-      "Consulta simultanea em historico do cliente, base tecnica e conhecimento interno.",
+      "O modelo recebe os trechos recuperados como contexto antes de construir a resposta.",
   },
   {
     icon: ShieldCheck,
-    title: "Seguranca operacional",
+    title: "Acesso protegido",
     description:
-      "Arquitetura preparada para sessao autenticada, JWT e auditoria de atendimentos.",
+      "A autenticação mantém o acesso às áreas internas vinculado à sessão do usuário.",
   },
 ];
 
@@ -37,61 +37,60 @@ export function AuthShell({
   children,
 }: AuthShellProps) {
   return (
-    <main className="min-h-screen px-4 py-6 md:px-6 lg:px-10">
-      <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-[1560px] gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-        <section className="hero-shell relative overflow-hidden rounded-[36px] px-6 py-8 text-white shadow-[0_26px_80px_rgba(10,19,32,0.28)] md:px-10 md:py-10 lg:px-14 lg:py-12">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_15%_15%,rgba(21,184,205,0.12),transparent_30%),radial-gradient(circle_at_85%_80%,rgba(21,184,205,0.08),transparent_30%)] px-4 py-4 md:px-6 md:py-6">
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1480px] overflow-hidden rounded-[36px] border border-border/70 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.12)] md:min-h-[calc(100vh-3rem)] lg:grid-cols-[0.96fr_1.04fr]">
+        <section className="relative overflow-hidden bg-[#0e1b2d] px-7 py-10 text-white md:px-10 lg:px-14 lg:py-14">
+          <div className="pointer-events-none absolute -left-24 top-16 size-80 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 right-0 size-96 rounded-full bg-primary/10 blur-3xl" />
+
           <div className="relative z-10 flex h-full flex-col">
             <BrandMark inverted />
-            <div className="mt-14 max-w-2xl space-y-4">
-              <p className="text-sm font-semibold tracking-[0.26em] text-cyan-200/88 uppercase">
+
+            <div className="mt-12 max-w-2xl">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-cyan-100">
+                <Sparkles className="size-4" />
+                Intelix Agent
+              </div>
+              <p className="text-sm font-semibold tracking-[0.24em] text-cyan-300 uppercase">
                 {eyebrow}
               </p>
-              <h1 className="text-4xl leading-tight font-semibold md:text-5xl lg:text-[58px] lg:leading-[1.05]">
+              <h1 className="mt-5 text-4xl leading-tight font-semibold tracking-[-0.035em] md:text-5xl lg:text-[58px] lg:leading-[1.04]">
                 {title}
               </h1>
-              <p className="max-w-xl text-sm leading-7 text-white/72 md:text-base">
+              <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
                 {description}
               </p>
             </div>
 
-            <div className="mt-12 grid gap-4 md:grid-cols-3">
-              {bullets.map((bullet) => (
-                <div
-                  key={bullet.title}
-                  className="rounded-[28px] border border-white/10 bg-white/7 p-5"
-                >
-                  <bullet.icon className="mb-4 size-6 text-cyan-200" />
-                  <p className="text-base font-semibold">{bullet.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/70">
-                    {bullet.description}
-                  </p>
-                </div>
-              ))}
+            <div className="mt-10 grid gap-3">
+              {bullets.map((bullet) => {
+                const Icon = bullet.icon;
+                return (
+                  <div
+                    key={bullet.title}
+                    className="flex gap-4 rounded-[22px] border border-white/10 bg-white/5 p-4"
+                  >
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-cyan-300/10 text-cyan-200">
+                      <Icon className="size-5" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">{bullet.title}</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-400">
+                        {bullet.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="mt-auto rounded-[28px] border border-white/10 bg-white/7 p-6">
-              <p className="text-sm text-white/72">Acesso de demonstracao</p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <div className="rounded-[22px] border border-white/8 bg-black/12 p-4">
-                  <p className="text-xs tracking-[0.2em] text-white/54 uppercase">
-                    Usuario
-                  </p>
-                  <p className="mt-2 text-base font-semibold">
-                    analista@intelix.ai
-                  </p>
-                </div>
-                <div className="rounded-[22px] border border-white/8 bg-black/12 p-4">
-                  <p className="text-xs tracking-[0.2em] text-white/54 uppercase">
-                    Senha
-                  </p>
-                  <p className="mt-2 text-base font-semibold">Intelix@2026</p>
-                </div>
-              </div>
-            </div>
+            <p className="mt-auto pt-10 text-xs leading-5 text-slate-500">
+              Intelix Agent · Inteligência Artificial aplicada ao suporte técnico em sistemas de gestão empresarial.
+            </p>
           </div>
         </section>
 
-        <section className="surface-card flex items-center justify-center p-6 md:p-8 lg:p-12">
+        <section className="flex items-center justify-center bg-white px-7 py-10 md:px-10 lg:px-14 lg:py-14">
           <div className="w-full max-w-[520px]">{children}</div>
         </section>
       </div>
