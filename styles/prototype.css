@@ -1,0 +1,55 @@
+@layer base {
+  body {
+    background:
+      radial-gradient(circle at top left, rgba(7, 178, 198, 0.16), transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(17, 24, 39, 0.08), transparent 22%),
+      linear-gradient(180deg, #eef5f7 0%, #f4f7f8 48%, #edf3f5 100%);
+  }
+
+  ::selection {
+    background: rgba(8, 178, 198, 0.22);
+    color: #0f1828;
+  }
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-[28px] border border-white/80 bg-white shadow-[0_24px_60px_rgba(15,24,40,0.08)];
+  }
+
+  .surface-card-muted {
+    @apply rounded-[24px] border border-border/70 bg-muted/55 shadow-[0_14px_34px_rgba(15,24,40,0.05)];
+  }
+
+  .sidebar-shell {
+    background:
+      radial-gradient(circle at top, rgba(17, 200, 220, 0.18), transparent 30%),
+      linear-gradient(180deg, #141b2b 0%, #101725 100%);
+  }
+
+  .hero-shell {
+    background:
+      radial-gradient(circle at 20% 18%, rgba(17, 200, 220, 0.18), transparent 28%),
+      radial-gradient(circle at 100% 0%, rgba(17, 24, 39, 0.36), transparent 30%),
+      linear-gradient(145deg, #111827 0%, #162032 38%, #0a6f80 155%);
+  }
+
+  .teal-outline {
+    box-shadow:
+      0 0 0 1px rgba(8, 178, 198, 0.16),
+      0 22px 44px rgba(8, 178, 198, 0.13);
+  }
+
+  .grid-overlay {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  .metric-glow {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.86)),
+      radial-gradient(circle at top right, rgba(8, 178, 198, 0.16), transparent 42%);
+  }
+}

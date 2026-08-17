@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompanyType {
+  FISICA
+  JURIDICA
+}
+
+enum UserRole {
+  ADMIN
+  ANALYST
+  SPECIALIST
+}
+
+enum TicketCategory {
+  NF_E
+  NFC_E
+  ESTOQUE
+  INVENTARIO
+  PCP
+  FINANCEIRO
+}
+
+enum TicketStatus {
+  ABERTO
+  EM_TRIAGEM
+  EM_ANDAMENTO
+  IA_RESOLVIDO
+  ESCALADO
+  FECHADO
+}
+
+enum TicketPriority {
+  BAIXA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum KnowledgeCategory {
+  NF_E
+  NFC_E
+  ESTOQUE
+  INVENTARIO
+  PCP
+  PROCEDIMENTOS
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model User {
+  id                  String             @id @default(cuid())
+  name                String
+  email               String             @unique
+  passwordHash        String
+  document            String
+  phone               String
+  companyType         CompanyType
+  role                UserRole           @default(ANALYST)
+  resetToken          String?
+  resetTokenExpiresAt DateTime?
+  tickets             Ticket[]           @relation("RequesterTickets")
+  conversations       ChatConversation[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model Ticket {
+  id              String          @id @default(cuid())
+  protocol        String          @unique
+  title           String
+  description     String
+  category        TicketCategory
+  status          TicketStatus    @default(ABERTO)
+  priority        TicketPriority  @default(MEDIA)
+  requesterId     String
+  requesterName   String
+  aiSummary       String?
+  resolutionNotes String?
+  requester       User            @relation("RequesterTickets", fields: [requesterId], references: [id], onDelete: Cascade)
+  histories       TicketHistory[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status, priority])
+  @@index([updatedAt])
+}
+
+model TicketHistory {
+  id        String   @id @default(cuid())
+  ticketId  String
+  actorName String
+  action    String
+  note      String?
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model KnowledgeDocument {
+  id        String            @id @default(cuid())
+  title     String
+  slug      String            @unique
+  excerpt   String
+  content   String
+  category  KnowledgeCategory
+  tags      String[]
+  views     Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([category])
+  @@index([updatedAt])
+}
+
+model ChatConversation {
+  id        String         @id @default(cuid())
+  title     String
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  confidence     Int?
+  citations      Json?
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+}

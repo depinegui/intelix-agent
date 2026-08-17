@@ -1,0 +1,61 @@
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/session";
+import {
+  deleteKnowledgeDocument,
+  updateKnowledgeDocument,
+} from "@/services/knowledge-service";
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { id } = await params;
+    const document = await updateKnowledgeDocument(id, body);
+    return NextResponse.json({ document });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Nao foi possivel atualizar o documento.",
+      },
+      { status: 400 },
+    );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  try {
+    const { id } = await params;
+    await deleteKnowledgeDocument(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Nao foi possivel remover o documento.",
+      },
+      { status: 400 },
+    );
+  }
+}

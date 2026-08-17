@@ -1,0 +1,242 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import {
+  BookOpen,
+  BotMessageSquare,
+  LayoutDashboard,
+  LogOut,
+  PlusSquare,
+  Settings,
+  Ticket,
+} from "lucide-react";
+import { toast } from "sonner";
+import { apiRequest } from "@/api/client";
+import { BrandMark } from "@/components/brand-mark";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { SessionUser } from "@/types";
+
+const navItems = [
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/chat-ia",
+    label: "Chat IA",
+    icon: BotMessageSquare,
+  },
+  {
+    href: "/chamados",
+    label: "Chamados",
+    icon: Ticket,
+  },
+  {
+    href: "/chamados/novo",
+    label: "Novo Chamado",
+    icon: PlusSquare,
+  },
+  {
+    href: "/base-conhecimento",
+    label: "Base de Conhecimento",
+    icon: BookOpen,
+  },
+  {
+    href: "/configuracoes",
+    label: "Configuracoes",
+    icon: Settings,
+  },
+];
+
+const pageMeta = [
+  {
+    match: "/dashboard",
+    title: "Intelix Dashboard",
+    description: "Visao geral do sistema de suporte",
+  },
+  {
+    match: "/chat-ia",
+    title: "Intelix Chat Inteligente",
+    description: "Assistente com contexto RAG e memoria de atendimento",
+  },
+  {
+    match: "/chamados/novo",
+    title: "Novo Chamado",
+    description: "Abra um chamado para suporte tecnico",
+  },
+  {
+    match: "/chamados",
+    title: "Intelix Chamados",
+    description: "Fila operacional, historico e atualizacao de status",
+  },
+  {
+    match: "/base-conhecimento",
+    title: "Base de Conhecimento",
+    description: "Documentacao e procedimentos indexados por IA",
+  },
+  {
+    match: "/configuracoes",
+    title: "Configuracoes",
+    description: "Parametros de ambiente e prontidao das integracoes",
+  },
+];
+
+interface AppShellProps {
+  user: SessionUser;
+  mode: "demo" | "database";
+  children: React.ReactNode;
+}
+
+export function AppShell({ user, mode, children }: AppShellProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  const meta =
+    [...pageMeta]
+      .sort((left, right) => right.match.length - left.match.length)
+      .find((item) => pathname.startsWith(item.match)) ?? pageMeta[0];
+
+  async function handleLogout() {
+    setLoading(true);
+    try {
+      await apiRequest("/api/auth/logout", {
+        method: "POST",
+      });
+      toast.success("Sessao encerrada.");
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao sair.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen px-4 py-4 md:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-[1560px] gap-4">
+        <aside className="sidebar-shell hidden w-[290px] rounded-[34px] p-5 text-sidebar-foreground shadow-[0_28px_80px_rgba(10,19,32,0.28)] lg:flex lg:flex-col">
+          <BrandMark inverted />
+
+          <nav className="mt-10 space-y-2">
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition-colors",
+                    isActive
+                      ? "bg-white/10 text-white"
+                      : "text-sidebar-foreground/72 hover:bg-white/6 hover:text-white",
+                  )}
+                >
+                  <item.icon className="size-5" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto space-y-4 rounded-[28px] border border-white/10 bg-white/6 p-5">
+            <div>
+              <p className="text-xs tracking-[0.2em] text-sidebar-foreground/54 uppercase">
+                Usuario ativo
+              </p>
+              <p className="mt-2 text-lg font-semibold">{user.name}</p>
+              <p className="text-sm text-sidebar-foreground/70">{user.email}</p>
+            </div>
+            <div className="rounded-[22px] border border-white/8 bg-black/10 px-4 py-3 text-sm text-sidebar-foreground/74">
+              Modo {mode === "database" ? "PostgreSQL" : "Demo"}
+            </div>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-11 rounded-2xl border-white/12 bg-white/8 text-white hover:bg-white/12"
+              disabled={loading}
+              onClick={handleLogout}
+            >
+              <LogOut className="size-4" />
+              Sair
+            </Button>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          <div className="surface-card flex flex-col gap-4 p-5 md:p-6 lg:hidden">
+            <div className="flex items-center justify-between gap-4">
+              <BrandMark compact />
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleLogout}
+                disabled={loading}
+              >
+                <LogOut className="size-4" />
+                Sair
+              </Button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {navItems.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex min-w-max items-center gap-2 rounded-2xl px-4 py-2 text-sm transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/70 text-muted-foreground",
+                    )}
+                  >
+                    <item.icon className="size-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <header className="surface-card flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between md:p-6">
+            <div>
+              <p className="text-sm font-semibold tracking-[0.2em] text-primary/80 uppercase">
+                Workspace Intelix
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold text-foreground">
+                {meta.title}
+              </h1>
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                {meta.description}
+              </p>
+            </div>
+            <div className="flex flex-col items-start gap-3 md:items-end">
+              <div className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground">
+                {mode === "database" ? "Banco conectado" : "Modo demo ativo"}
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-foreground">
+                  {user.name}
+                </p>
+                <p className="text-sm text-muted-foreground">{user.role}</p>
+              </div>
+            </div>
+          </header>
+
+          <div className="min-h-[50vh]">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}

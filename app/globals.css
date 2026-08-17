@@ -1,0 +1,134 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "../styles/prototype.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-plex-mono);
+  --background: #f3f6f7;
+  --foreground: #1b2436;
+  --card: #ffffff;
+  --card-foreground: #1b2436;
+  --popover: #ffffff;
+  --popover-foreground: #1b2436;
+  --primary: #08b2c6;
+  --primary-foreground: #f7feff;
+  --secondary: #e7f7fa;
+  --secondary-foreground: #12424d;
+  --muted: #ebeff2;
+  --muted-foreground: #5e6b7d;
+  --accent: #dbf7fb;
+  --accent-foreground: #0d5160;
+  --destructive: #d45757;
+  --border: #dde7ec;
+  --input: #d7e3e9;
+  --ring: #6fd8e7;
+  --chart-1: #09c1d8;
+  --chart-2: #86e0ea;
+  --chart-3: #31405d;
+  --chart-4: #93a5ba;
+  --chart-5: #cfe5ea;
+  --radius: 1.25rem;
+  --sidebar: #121829;
+  --sidebar-foreground: #f4fcff;
+  --sidebar-primary: #08b2c6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1c2436;
+  --sidebar-accent-foreground: #f4fcff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: rgba(8, 178, 198, 0.45);
+}
+
+.dark {
+  --background: #0f1420;
+  --foreground: #f6fbff;
+  --card: #151d2e;
+  --card-foreground: #f6fbff;
+  --popover: #151d2e;
+  --popover-foreground: #f6fbff;
+  --primary: #11c8dc;
+  --primary-foreground: #081418;
+  --secondary: #1d273a;
+  --secondary-foreground: #f6fbff;
+  --muted: #1a2233;
+  --muted-foreground: #9fb0bf;
+  --accent: #142535;
+  --accent-foreground: #ebfcff;
+  --destructive: #f47d7d;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: rgba(17, 200, 220, 0.45);
+  --chart-1: #18c4da;
+  --chart-2: #60dbe8;
+  --chart-3: #c2f1f7;
+  --chart-4: #4d647d;
+  --chart-5: #202c40;
+  --sidebar: #0d1320;
+  --sidebar-foreground: #f6fbff;
+  --sidebar-primary: #11c8dc;
+  --sidebar-primary-foreground: #081418;
+  --sidebar-accent: #1d273a;
+  --sidebar-accent-foreground: #f6fbff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: rgba(17, 200, 220, 0.45);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+  }
+}
