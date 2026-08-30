@@ -1,12 +1,12 @@
 import { ChatView } from "@/components/chat/chat-view";
-import { requireSessionUser } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import {
   getLatestConversation,
   listChatConversations,
 } from "@/services/chat-service";
 
 export default async function ChatPage() {
-  const user = await requireSessionUser();
+  const user = await requirePermission("USE_CHAT");
   const [conversationState, initialConversations] = await Promise.all([
     getLatestConversation(user.id),
     listChatConversations(user.id),

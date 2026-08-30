@@ -1,8 +1,10 @@
 import { BrainCircuit, Database, KeyRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { env, isDatabaseEnabled, isOpenAiEnabled } from "@/lib/env";
+import { requirePermission } from "@/lib/session";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requirePermission("VIEW_SETTINGS");
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import { hasPermission } from "@/lib/permissions";
 import { createTicket, listTickets } from "@/services/ticket-service";
 
 export async function GET() {
@@ -7,6 +8,10 @@ export async function GET() {
 
   if (!user) {
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "VIEW_TICKETS")) {
+    return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
   const tickets = await listTickets();
@@ -18,6 +23,10 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "CREATE_TICKET")) {
+    return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
   try {

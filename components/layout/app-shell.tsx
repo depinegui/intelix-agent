@@ -12,43 +12,56 @@ import {
   Settings,
   Ticket,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { apiRequest } from "@/api/client";
 import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
+import type { Permission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types";
 
-const navItems = [
+const navItems: Array<{
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  permission: Permission;
+}> = [
   {
     href: "/dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
+    permission: "VIEW_DASHBOARD",
   },
   {
     href: "/chat-ia",
     label: "Chat IA",
     icon: BotMessageSquare,
+    permission: "USE_CHAT",
   },
   {
     href: "/chamados",
     label: "Chamados",
     icon: Ticket,
+    permission: "VIEW_TICKETS",
   },
   {
     href: "/chamados/novo",
     label: "Novo Chamado",
     icon: PlusSquare,
+    permission: "CREATE_TICKET",
   },
   {
     href: "/base-conhecimento",
     label: "Base de Conhecimento",
     icon: BookOpen,
+    permission: "VIEW_KNOWLEDGE",
   },
   {
     href: "/configuracoes",
     label: "Configuracoes",
     icon: Settings,
+    permission: "VIEW_SETTINGS",
   },
 ];
 
@@ -88,13 +101,17 @@ const pageMeta = [
 interface AppShellProps {
   user: SessionUser;
   mode: "demo" | "database";
+  permissions: Permission[];
   children: React.ReactNode;
 }
 
-export function AppShell({ user, mode, children }: AppShellProps) {
+export function AppShell({ user, mode, permissions, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const visibleNavItems = navItems.filter((item) =>
+    permissions.includes(item.permission),
+  );
 
   const meta =
     [...pageMeta]
@@ -124,7 +141,7 @@ export function AppShell({ user, mode, children }: AppShellProps) {
           <BrandMark inverted />
 
           <nav className="mt-10 space-y-2">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -186,7 +203,7 @@ export function AppShell({ user, mode, children }: AppShellProps) {
               </Button>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const isActive =
                   pathname === item.href ||
                   (item.href !== "/dashboard" && pathname.startsWith(item.href));

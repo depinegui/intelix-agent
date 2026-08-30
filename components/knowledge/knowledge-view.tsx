@@ -51,6 +51,8 @@ const knowledgeCategories = [
 interface KnowledgeViewProps {
   initialDocuments: KnowledgeDocument[];
   stats: KnowledgeOverviewStats;
+  canManage: boolean;
+  canDelete: boolean;
 }
 
 const emptyForm: KnowledgeInput = {
@@ -64,6 +66,8 @@ const emptyForm: KnowledgeInput = {
 export function KnowledgeView({
   initialDocuments,
   stats,
+  canManage,
+  canDelete,
 }: KnowledgeViewProps) {
   const [documents, setDocuments] = useState(initialDocuments);
   const [search, setSearch] = useState("");
@@ -213,10 +217,12 @@ export function KnowledgeView({
                 placeholder="Buscar na base de conhecimento..."
               />
             </div>
-            <Button onClick={openCreateDialog} size="lg" className="h-12 rounded-2xl px-6">
-              <Plus className="size-4" />
-              Novo documento
-            </Button>
+            {canManage ? (
+              <Button onClick={openCreateDialog} size="lg" className="h-12 rounded-2xl px-6">
+                <Plus className="size-4" />
+                Novo documento
+              </Button>
+            ) : null}
           </div>
 
           <div className="grid gap-4 xl:grid-cols-3">
@@ -286,22 +292,28 @@ export function KnowledgeView({
                 </div>
                 <div className="flex items-center justify-between gap-3 pt-2 text-sm text-muted-foreground">
                   <span>{formatShortDate(document.updatedAt)}</span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl"
-                      onClick={() => openEditDialog(document)}
-                    >
-                      <Edit3 className="size-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl"
-                      onClick={() => handleDelete(document.id)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
+                  {canManage || canDelete ? (
+                    <div className="flex gap-2">
+                      {canManage ? (
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl"
+                          onClick={() => openEditDialog(document)}
+                        >
+                          <Edit3 className="size-4" />
+                        </Button>
+                      ) : null}
+                      {canDelete ? (
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl"
+                          onClick={() => handleDelete(document.id)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>

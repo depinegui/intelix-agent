@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import { hasPermission } from "@/lib/permissions";
 import {
   createKnowledgeDocument,
   listKnowledgeDocuments,
@@ -10,6 +11,10 @@ export async function GET(request: Request) {
 
   if (!user) {
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "VIEW_KNOWLEDGE")) {
+    return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -23,6 +28,10 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "MANAGE_KNOWLEDGE")) {
+    return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
   try {

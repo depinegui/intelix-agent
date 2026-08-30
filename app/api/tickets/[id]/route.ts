@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/session";
+import { hasPermission } from "@/lib/permissions";
 import { updateTicketStatus } from "@/services/ticket-service";
 
 const updateSchema = z.object({
@@ -23,6 +24,10 @@ export async function PATCH(
 
   if (!user) {
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "MANAGE_TICKETS")) {
+    return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
   try {

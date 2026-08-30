@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import { hasPermission } from "@/lib/permissions";
 import {
   deleteKnowledgeDocument,
   updateKnowledgeDocument,
@@ -13,6 +14,10 @@ export async function PUT(
 
   if (!user) {
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "MANAGE_KNOWLEDGE")) {
+    return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
   try {
@@ -41,6 +46,10 @@ export async function DELETE(
 
   if (!user) {
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "DELETE_KNOWLEDGE")) {
+    return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
   try {

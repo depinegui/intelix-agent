@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/session";
+import { hasPermission } from "@/lib/permissions";
 import { updateChatMessageFeedback } from "@/services/chat-service";
 
 const feedbackSchema = z.object({
@@ -19,6 +20,10 @@ export async function PATCH(
 
   if (!user) {
     return NextResponse.json({ message: "Nao autorizado." }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "USE_CHAT")) {
+    return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
   try {

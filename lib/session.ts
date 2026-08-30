@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifySessionToken } from "@/lib/auth";
 import { AUTH_COOKIE_NAME } from "@/lib/constants";
+import { hasPermission, type Permission } from "@/lib/permissions";
 import { getUserById } from "@/services/auth-service";
 
 export async function getSessionUser() {
@@ -26,6 +27,16 @@ export async function requireSessionUser() {
 
   if (!user) {
     redirect("/login");
+  }
+
+  return user;
+}
+
+export async function requirePermission(permission: Permission) {
+  const user = await requireSessionUser();
+
+  if (!hasPermission(user, permission)) {
+    redirect("/dashboard");
   }
 
   return user;
