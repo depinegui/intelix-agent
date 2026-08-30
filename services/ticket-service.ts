@@ -69,7 +69,7 @@ function serializeTicket(record: {
   };
 }
 
-export async function listTickets() {
+export async function listTickets(limit?: number) {
   if (prisma) {
     const tickets = await prisma.ticket.findMany({
       include: {
@@ -78,14 +78,15 @@ export async function listTickets() {
         },
       },
       orderBy: { updatedAt: "desc" },
+      ...(limit ? { take: limit } : {}),
     });
 
     return tickets.map(serializeTicket);
   }
 
-  return [...demoStore.tickets].sort((left, right) =>
-    right.updatedAt.localeCompare(left.updatedAt),
-  );
+  return [...demoStore.tickets]
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, limit);
 }
 
 export function getProtocolPreview() {

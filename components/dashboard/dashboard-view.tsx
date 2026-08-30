@@ -116,7 +116,7 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
               </div>
               <div className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground">
                 <TrendingUp className="mr-2 inline size-4" />
-                Pico em sexta-feira
+                {snapshot.weeklyPeakLabel}
               </div>
             </div>
           </CardHeader>

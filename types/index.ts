@@ -143,6 +143,7 @@ export interface DashboardSnapshot {
     assisted: number;
     escalated: number;
   }>;
+  weeklyPeakLabel: string;
   recentTickets: TicketRecord[];
 }
 
