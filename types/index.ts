@@ -146,7 +146,10 @@ export interface DashboardSnapshot {
   indexedDocs: number;
   resolutionRate: number;
   handoffRate: number;
-  averageMinutes: number;
+  averageAiResponseTimeMs: number | null;
+  contextCoverageRate: number | null;
+  helpfulFeedbackRate: number | null;
+  averageSourcesPerResponse: number | null;
   weeklyVolume: Array<{
     day: string;
     total: number;

@@ -1,4 +1,4 @@
-import { demoStore, prototypeDashboard } from "@/database/demo-store";
+import { demoStore } from "@/database/demo-store";
 import { prisma } from "@/lib/prisma";
 import { listTickets } from "@/services/ticket-service";
 import type { DashboardSnapshot, TicketStatus } from "@/types";
@@ -19,6 +19,14 @@ type WeeklyTicket = {
   createdAt: Date;
   status: TicketStatus;
 };
+
+type AgentMetrics = Pick<
+  DashboardSnapshot,
+  | "averageAiResponseTimeMs"
+  | "contextCoverageRate"
+  | "helpfulFeedbackRate"
+  | "averageSourcesPerResponse"
+>;
 
 function startOfDay(date: Date) {
   const start = new Date(date);
@@ -73,6 +81,19 @@ function toPercentage(value: number, total: number) {
   return total === 0 ? 0 : Math.round((value / total) * 100);
 }
 
+function toMeasuredPercentage(value: number, total: number) {
+  return total === 0 ? null : Math.round((value / total) * 100);
+}
+
+function getUnavailableAgentMetrics(): AgentMetrics {
+  return {
+    averageAiResponseTimeMs: null,
+    contextCoverageRate: null,
+    helpfulFeedbackRate: null,
+    averageSourcesPerResponse: null,
+  };
+}
+
 function createSnapshot({
   totalTickets,
   handledToday,
@@ -81,6 +102,7 @@ function createSnapshot({
   indexedDocs,
   weeklyTickets,
   recentTickets,
+  agentMetrics,
   now,
 }: {
   totalTickets: number;
@@ -90,6 +112,7 @@ function createSnapshot({
   indexedDocs: number;
   weeklyTickets: WeeklyTicket[];
   recentTickets: DashboardSnapshot["recentTickets"];
+  agentMetrics: AgentMetrics;
   now: Date;
 }): DashboardSnapshot {
   const resolutionRate = toPercentage(resolvedByAi, totalTickets);
@@ -122,9 +145,7 @@ function createSnapshot({
     indexedDocs,
     resolutionRate,
     handoffRate,
-    // Ticket ainda nao registra um marco confiavel de inicio/fim do atendimento.
-    // Manter o valor atual ate que esse dado esteja disponivel para o calculo real.
-    averageMinutes: prototypeDashboard.averageMinutes,
+    ...agentMetrics,
     weeklyVolume,
     weeklyPeakLabel,
     recentTickets,
@@ -151,6 +172,7 @@ function getDemoSnapshot(now: Date): DashboardSnapshot {
     recentTickets: [...demoStore.tickets]
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       .slice(0, RECENT_TICKETS_LIMIT),
+    agentMetrics: getUnavailableAgentMetrics(),
     now,
   });
 }
@@ -173,6 +195,10 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
       indexedDocs,
       weeklyTickets,
       recentTickets,
+      responseTimeAggregate,
+      contextBreakdown,
+      feedbackBreakdown,
+      sourcesAggregate,
     ] = await Promise.all([
       prisma.ticket.count(),
       prisma.ticket.count({ where: { createdAt: { gte: todayStart } } }),
@@ -184,7 +210,52 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
         select: { createdAt: true, status: true },
       }),
       listTickets(RECENT_TICKETS_LIMIT),
+      prisma.chatMessage.aggregate({
+        where: {
+          role: "ASSISTANT",
+          responseTimeMs: { gt: 0 },
+        },
+        _avg: { responseTimeMs: true },
+      }),
+      prisma.chatMessage.groupBy({
+        by: ["withoutContext"],
+        where: {
+          role: "ASSISTANT",
+          withoutContext: { not: null },
+        },
+        _count: { _all: true },
+      }),
+      prisma.chatMessage.groupBy({
+        by: ["feedback"],
+        where: {
+          role: "ASSISTANT",
+          feedback: { not: null },
+        },
+        _count: { _all: true },
+      }),
+      prisma.chatMessage.aggregate({
+        where: {
+          role: "ASSISTANT",
+          retrievedSourcesCount: { not: null },
+        },
+        _avg: { retrievedSourcesCount: true },
+      }),
     ]);
+
+    const measuredContextResponses = contextBreakdown.reduce(
+      (total, item) => total + item._count._all,
+      0,
+    );
+    const responsesWithContext =
+      contextBreakdown.find((item) => item.withoutContext === false)?._count
+        ._all ?? 0;
+    const ratedResponses = feedbackBreakdown.reduce(
+      (total, item) => total + item._count._all,
+      0,
+    );
+    const helpfulResponses =
+      feedbackBreakdown.find((item) => item.feedback === "HELPFUL")?._count
+        ._all ?? 0;
 
     return createSnapshot({
       totalTickets,
@@ -194,6 +265,19 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
       indexedDocs,
       weeklyTickets,
       recentTickets,
+      agentMetrics: {
+        averageAiResponseTimeMs: responseTimeAggregate._avg.responseTimeMs,
+        contextCoverageRate: toMeasuredPercentage(
+          responsesWithContext,
+          measuredContextResponses,
+        ),
+        helpfulFeedbackRate: toMeasuredPercentage(
+          helpfulResponses,
+          ratedResponses,
+        ),
+        averageSourcesPerResponse:
+          sourcesAggregate._avg.retrievedSourcesCount,
+      },
       now,
     });
   } catch {

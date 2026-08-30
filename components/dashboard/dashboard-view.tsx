@@ -37,6 +37,27 @@ function ticketBadgeVariant(status: TicketRecord["status"]) {
   return "bg-muted text-muted-foreground";
 }
 
+function formatDecimal(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function formatResponseTime(value: number | null) {
+  return value === null ? "Nao medido" : `${formatDecimal(value / 1000)} s`;
+}
+
+function formatPercentage(value: number | null, emptyLabel: string) {
+  return value === null ? emptyLabel : `${value}%`;
+}
+
+function formatSources(value: number | null) {
+  if (value === null) return "Nao medido";
+
+  return `${formatDecimal(value)} ${value === 1 ? "fonte" : "fontes"}`;
+}
+
 export function DashboardView({ snapshot }: DashboardViewProps) {
   return (
     <div className="grid gap-4">
@@ -94,11 +115,39 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
             <div className="rounded-[24px] border border-border/60 bg-white/85 p-4">
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Clock3 className="size-4" />
-                Tempo medio de atendimento
+                Tempo medio de resposta da IA
               </div>
               <p className="mt-3 text-3xl font-semibold text-foreground">
-                {snapshot.averageMinutes} min
+                {formatResponseTime(snapshot.averageAiResponseTimeMs)}
               </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[20px] border border-border/60 bg-white/65 p-3">
+                <p className="text-xs text-muted-foreground">Respostas com contexto</p>
+                <p className="mt-2 text-xl font-semibold text-foreground">
+                  {formatPercentage(snapshot.contextCoverageRate, "Nao medido")}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Apoiadas por conteudo recuperado
+                </p>
+              </div>
+              <div className="rounded-[20px] border border-border/60 bg-white/65 p-3">
+                <p className="text-xs text-muted-foreground">Respostas uteis</p>
+                <p className="mt-2 text-xl font-semibold text-foreground">
+                  {formatPercentage(snapshot.helpfulFeedbackRate, "Sem avaliacoes")}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Entre respostas avaliadas
+                </p>
+              </div>
+              <div className="rounded-[20px] border border-border/60 bg-white/65 p-3 sm:col-span-2">
+                <p className="text-xs text-muted-foreground">
+                  Fontes medias por resposta
+                </p>
+                <p className="mt-2 text-xl font-semibold text-foreground">
+                  {formatSources(snapshot.averageSourcesPerResponse)}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
