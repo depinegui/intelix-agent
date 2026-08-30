@@ -23,6 +23,7 @@ export type KnowledgeCategory =
   | "PCP"
   | "PROCEDIMENTOS";
 export type MessageRole = "USER" | "ASSISTANT" | "SYSTEM";
+export type MessageFeedback = "HELPFUL" | "NOT_HELPFUL";
 
 export interface SessionUser {
   id: string;
@@ -127,6 +128,10 @@ export interface ChatMessageRecord {
   content: string;
   confidence?: number;
   citations?: ChatCitation[];
+  responseTimeMs?: number;
+  retrievedSourcesCount?: number;
+  withoutContext?: boolean;
+  feedback?: MessageFeedback;
   createdAt: string;
 }
 

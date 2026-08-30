@@ -10,6 +10,7 @@ import {
 } from "@/services/knowledge-rag-service";
 import type {
   ChatConversationRecord,
+  MessageFeedback,
   ChatMessageRecord,
   ChatReply,
   SessionUser,
@@ -22,6 +23,10 @@ function serializeMessage(record: {
   content: string;
   confidence: number | null;
   citations: unknown;
+  responseTimeMs: number | null;
+  retrievedSourcesCount: number | null;
+  withoutContext: boolean | null;
+  feedback: MessageFeedback | null;
   createdAt: Date | string;
 }): ChatMessageRecord {
   return {
@@ -33,6 +38,10 @@ function serializeMessage(record: {
     citations: Array.isArray(record.citations)
       ? (record.citations as ChatMessageRecord["citations"])
       : undefined,
+    responseTimeMs: record.responseTimeMs ?? undefined,
+    retrievedSourcesCount: record.retrievedSourcesCount ?? undefined,
+    withoutContext: record.withoutContext ?? undefined,
+    feedback: record.feedback ?? undefined,
     createdAt:
       record.createdAt instanceof Date
         ? record.createdAt.toISOString()
@@ -160,6 +169,50 @@ function createConversationTitle(prompt: string) {
   return prompt.length > 36 ? `${prompt.slice(0, 36)}...` : prompt;
 }
 
+export async function updateChatMessageFeedback(
+  userId: string,
+  messageId: string,
+  feedback: MessageFeedback | undefined,
+) {
+  if (prisma) {
+    const message = await prisma.chatMessage.findFirst({
+      where: {
+        id: messageId,
+        role: "ASSISTANT",
+        conversation: { userId },
+      },
+    });
+
+    if (!message) {
+      return null;
+    }
+
+    const updatedMessage = await prisma.chatMessage.update({
+      where: { id: message.id },
+      data: { feedback: feedback ?? null },
+    });
+
+    return serializeMessage(updatedMessage);
+  }
+
+  const message = demoStore.messages.find(
+    (item) =>
+      item.id === messageId &&
+      item.role === "ASSISTANT" &&
+      demoStore.conversations.some(
+        (conversation) =>
+          conversation.id === item.conversationId && conversation.userId === userId,
+      ),
+  );
+
+  if (!message) {
+    return null;
+  }
+
+  message.feedback = feedback;
+  return message;
+}
+
 export async function sendChatMessage(
   conversationId: string | undefined,
   prompt: string,
@@ -172,6 +225,7 @@ export async function sendChatMessage(
   }
 
   const sanitizedPrompt = redactSensitiveData(trimmedPrompt);
+  const responseStartedAt = performance.now();
   const indexedDocuments = await searchKnowledgeBase(sanitizedPrompt, 4);
   const shouldUseLegacyKnowledge =
     indexedDocuments.length === 0 && !(await hasIndexedKnowledgeBase());
@@ -230,6 +284,14 @@ export async function sendChatMessage(
       history: historyRecords.map(serializeMessage),
       relatedDocuments,
     });
+    const responseTimeMs = Math.max(
+      1,
+      Math.round(performance.now() - responseStartedAt),
+    );
+    const retrievedSourcesCount = reply.citations.length;
+    // A ausencia de citacoes representa que nenhum contexto foi efetivamente
+    // usado pela resposta; nao inferimos esse estado pelo texto gerado.
+    const withoutContext = retrievedSourcesCount === 0;
 
     const assistantMessage = await prisma.chatMessage.create({
       data: {
@@ -238,6 +300,9 @@ export async function sendChatMessage(
         content: reply.content,
         confidence: reply.confidence,
         citations: reply.citations as unknown as Prisma.InputJsonValue,
+        responseTimeMs,
+        retrievedSourcesCount,
+        withoutContext,
       },
     });
     const updatedConversation = await prisma.chatConversation.update({
@@ -292,6 +357,13 @@ export async function sendChatMessage(
     history,
     relatedDocuments,
   });
+  const responseTimeMs = Math.max(
+    1,
+    Math.round(performance.now() - responseStartedAt),
+  );
+  const retrievedSourcesCount = reply.citations.length;
+  // Mantem a mesma semantica do PostgreSQL quando a aplicacao usa o fallback.
+  const withoutContext = retrievedSourcesCount === 0;
 
   const assistantMessage: ChatMessageRecord = {
     id: `msg_${crypto.randomUUID().slice(0, 8)}`,
@@ -300,6 +372,9 @@ export async function sendChatMessage(
     content: reply.content,
     confidence: reply.confidence,
     citations: reply.citations,
+    responseTimeMs,
+    retrievedSourcesCount,
+    withoutContext,
     createdAt: new Date().toISOString(),
   };
 

@@ -8,6 +8,8 @@ import {
   Plus,
   Send,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import type {
   ChatConversationRecord,
+  MessageFeedback,
   ChatMessageRecord,
   ChatReply,
 } from "@/types";
@@ -42,6 +45,7 @@ export function ChatView({
   const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
   const [openingConversationId, setOpeningConversationId] = useState("");
+  const [updatingFeedbackId, setUpdatingFeedbackId] = useState("");
 
   const scrollRef = useAutoScroll<HTMLDivElement>(messages.length);
   const lastAssistantMessage = [...messages]
@@ -85,6 +89,42 @@ export function ChatView({
       );
     } finally {
       setOpeningConversationId("");
+    }
+  }
+
+  async function updateFeedback(
+    messageId: string,
+    currentFeedback: MessageFeedback | undefined,
+    nextFeedback: MessageFeedback,
+  ) {
+    if (updatingFeedbackId) {
+      return;
+    }
+
+    const feedback = currentFeedback === nextFeedback ? undefined : nextFeedback;
+    setUpdatingFeedbackId(messageId);
+
+    try {
+      const payload = await apiRequest<{ message: ChatMessageRecord }>(
+        `/api/chat/messages/${messageId}/feedback`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ feedback: feedback ?? null }),
+        },
+      );
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId ? payload.message : message,
+        ),
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel salvar o feedback.",
+      );
+    } finally {
+      setUpdatingFeedbackId("");
     }
   }
 
@@ -284,6 +324,50 @@ export function ChatView({
                           <span>Confianca {message.confidence}%</span>
                         ) : null}
                       </div>
+                      {assistant ? (
+                        <div className="mt-3 flex items-center gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                              message.feedback === "HELPFUL" ? "secondary" : "ghost"
+                            }
+                            className="h-7 rounded-xl px-2 text-xs"
+                            onClick={() =>
+                              updateFeedback(
+                                message.id,
+                                message.feedback,
+                                "HELPFUL",
+                              )
+                            }
+                            disabled={Boolean(updatingFeedbackId)}
+                          >
+                            <ThumbsUp className="size-3.5" />
+                            Util
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                              message.feedback === "NOT_HELPFUL"
+                                ? "secondary"
+                                : "ghost"
+                            }
+                            className="h-7 rounded-xl px-2 text-xs"
+                            onClick={() =>
+                              updateFeedback(
+                                message.id,
+                                message.feedback,
+                                "NOT_HELPFUL",
+                              )
+                            }
+                            disabled={Boolean(updatingFeedbackId)}
+                          >
+                            <ThumbsDown className="size-3.5" />
+                            Nao util
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 );
