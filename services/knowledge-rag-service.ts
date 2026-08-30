@@ -21,8 +21,52 @@ const SUPPORTED_EXTENSIONS = new Set([
 ]);
 const CHUNK_SIZE = 1200;
 const CHUNK_OVERLAP = 180;
-const MINIMUM_RELEVANCE_SCORE = 0.32;
+// A margem sobe apenas 0,04 sobre o piso anterior (0,32); o filtro relativo
+// abaixo continua sendo o principal criterio para nao descartar contexto util.
+const MINIMUM_RELEVANCE_SCORE = 0.36;
+// Nas consultas de validacao, 82% removeu a fonte de entrada de XML (0,4598)
+// frente ao melhor resultado sobre nota autorizada (0,5697), sem remover os
+// tres resultados complementares da rejeicao 204.
+const RELATIVE_RELEVANCE_RATIO = 0.82;
+const EXACT_REJECTION_CODE_BOOST = 0.18;
+const DIFFERENT_REJECTION_CODE_PENALTY = 0.12;
+const MATCHING_TITLE_INTENT_BONUS = 0.04;
+const PROCEDURAL_QUERY_ERROR_TITLE_PENALTY = 0.35;
+const MATCHING_CATEGORY_BONUS = 0.06;
+const GENERIC_PROCEDURE_CATEGORY_PENALTY = 0.13;
+const INCOMPATIBLE_CATEGORY_PENALTY = 0.1;
+const NO_LEXICAL_SUPPORT_CATEGORY_PENALTY = 0.04;
+const NEAR_DUPLICATE_TOKEN_OVERLAP = 0.8;
 const EMBEDDING_BATCH_SIZE = 50;
+const PORTUGUESE_STOPWORDS = new Set([
+  "a",
+  "o",
+  "as",
+  "os",
+  "de",
+  "da",
+  "do",
+  "das",
+  "dos",
+  "um",
+  "uma",
+  "para",
+  "por",
+  "em",
+  "no",
+  "na",
+  "nos",
+  "nas",
+  "como",
+  "faco",
+  "quero",
+  "preciso",
+  "poderia",
+  "pode",
+  "me",
+  "ajudar",
+  "sistema",
+]);
 
 const indexedChunkSchema = z.object({
   id: z.string(),
@@ -87,6 +131,50 @@ interface ExtractedKnowledgeFile {
   recordsIndexed: number;
 }
 
+interface ScoredKnowledgeChunk extends RetrievedKnowledgeChunk {
+  semanticScore: number;
+  lexicalScore: number;
+  codeAdjustment: number;
+  intentAdjustment: number;
+  categoryAdjustment: number;
+  titleIntent: KnowledgeIntent;
+  searchableText: string;
+  decision: KnowledgeSearchDecision;
+}
+
+type KnowledgeIntent = "error" | "procedural" | "neutral";
+
+type KnowledgeSearchDecision =
+  | "approved"
+  | "below-minimum-score"
+  | "below-relative-score"
+  | "near-duplicate"
+  | "limit-reached";
+
+export interface KnowledgeSearchDiagnosticEntry {
+  title: string;
+  source: string;
+  score: number;
+  semanticScore: number;
+  lexicalScore: number;
+  codeAdjustment: number;
+  intentAdjustment: number;
+  categoryAdjustment: number;
+  titleIntent: KnowledgeIntent;
+  category: KnowledgeCategory;
+  decision: KnowledgeSearchDecision;
+}
+
+export interface KnowledgeSearchDiagnostic {
+  query: string;
+  queryIntent: KnowledgeIntent;
+  queryCategory: KnowledgeCategory | null;
+  queryTokens: string[];
+  minimumScore: number;
+  relativeScoreFloor: number | null;
+  entries: KnowledgeSearchDiagnosticEntry[];
+}
+
 interface SpreadsheetKnowledgeRow {
   primaryQuestion: string;
   answer: string;
@@ -126,10 +214,17 @@ function normalizeForSearch(input: string) {
 }
 
 function tokenize(input: string) {
-  return normalizeForSearch(input)
+  const normalizedTokens = normalizeForSearch(input)
     .split(/[^a-z0-9]+/i)
     .map((token) => token.trim())
     .filter((token) => token.length > 1);
+  const usefulTokens = normalizedTokens.filter(
+    (token) => !PORTUGUESE_STOPWORDS.has(token),
+  );
+
+  // Consultas muito curtas ainda podem usar o comportamento anterior quando a
+  // remocao de stopwords nao deixa nenhum termo informativo.
+  return usefulTokens.length > 0 ? usefulTokens : normalizedTokens;
 }
 
 function normalizeSpreadsheetHeader(input: string) {
@@ -348,14 +443,194 @@ function lexicalSimilarity(query: string, searchableText: string) {
   return matches / queryTokens.size;
 }
 
-function exactCodeBoost(query: string, searchableText: string) {
-  const queryCodes = query.match(/\b\d{3,}\b/g) ?? [];
+function detectKnowledgeIntent(input: string): KnowledgeIntent {
+  const normalized = normalizeForSearch(input);
+  const errorSignals = [
+    "rejeicao",
+    "erro",
+    "falha",
+    "problema",
+    "denegada",
+    "denegado",
+    "recusada",
+    "recusado",
+  ];
 
-  if (queryCodes.length === 0) {
+  // Erro tem precedencia: "como resolver uma rejeicao" nao deve ser tratado
+  // como uma solicitacao procedural generica.
+  if (errorSignals.some((signal) => normalized.includes(signal))) {
+    return "error";
+  }
+
+  const proceduralSignals = [
+    "como faco",
+    "como emitir",
+    "emitir",
+    "cadastrar",
+    "consultar",
+    "gerar",
+    "configurar",
+    "realizar",
+    "procedimento",
+    "passo a passo",
+  ];
+
+  return proceduralSignals.some((signal) => normalized.includes(signal))
+    ? "procedural"
+    : "neutral";
+}
+
+function getIntentAdjustment(
+  queryIntent: KnowledgeIntent,
+  titleIntent: KnowledgeIntent,
+) {
+  if (queryIntent === "procedural" && titleIntent === "error") {
+    // Evita que a palavra NF-e faca um titulo de rejeicao dominar uma pergunta
+    // de procedimento; o chunk ainda pode voltar se o restante do score for alto.
+    return -PROCEDURAL_QUERY_ERROR_TITLE_PENALTY;
+  }
+
+  if (queryIntent !== "neutral" && queryIntent === titleIntent) {
+    return MATCHING_TITLE_INTENT_BONUS;
+  }
+
+  // Manuais procedurais continuam elegiveis para consultas de erro como contexto
+  // complementar, por isso nao recebem penalidade no sentido inverso.
+  return 0;
+}
+
+function inferQueryCategory(input: string): KnowledgeCategory | null {
+  const normalized = normalizeForSearch(input);
+
+  if (
+    normalized.includes("nfc-e") ||
+    normalized.includes("nfce") ||
+    normalized.includes("cupom fiscal") ||
+    normalized.includes("pdv")
+  ) {
+    return "NFC_E";
+  }
+
+  if (
+    normalized.includes("nf-e") ||
+    normalized.includes("nfe") ||
+    normalized.includes("nota fiscal") ||
+    normalized.includes("sefaz")
+  ) {
+    return "NF_E";
+  }
+
+  if (
+    normalized.includes("estoque") ||
+    normalized.includes("saldo de produto") ||
+    normalized.includes("movimentacao de estoque")
+  ) {
+    return "ESTOQUE";
+  }
+
+  if (normalized.includes("inventario") || normalized.includes("contagem")) {
+    return "INVENTARIO";
+  }
+
+  if (
+    normalized.includes("pcp") ||
+    normalized.includes("producao") ||
+    normalized.includes("ordem de producao")
+  ) {
+    return "PCP";
+  }
+
+  return normalized.includes("procedimento") ? "PROCEDIMENTOS" : null;
+}
+
+function getCategoryAdjustment(
+  queryCategory: KnowledgeCategory | null,
+  chunkCategory: KnowledgeCategory,
+  lexicalScore: number,
+  queryIntent: KnowledgeIntent,
+  titleIntent: KnowledgeIntent,
+) {
+  if (!queryCategory) {
     return 0;
   }
 
-  return queryCodes.some((code) => searchableText.includes(code)) ? 0.2 : 0;
+  let adjustment = 0;
+
+  if (queryCategory === chunkCategory) {
+    // A categoria nao deve neutralizar a incompatibilidade forte entre uma
+    // pergunta procedural e um titulo explicitamente de rejeicao.
+    adjustment =
+      queryIntent === "procedural" && titleIntent === "error"
+        ? 0
+        : MATCHING_CATEGORY_BONUS;
+  } else if (chunkCategory === "PROCEDIMENTOS") {
+    // Procedimentos podem complementar um dominio explicito, mas recebem uma
+    // pequena reducao para nao superar conteudo especializado sem termos comuns.
+    adjustment = -GENERIC_PROCEDURE_CATEGORY_PENALTY;
+  } else {
+    adjustment = -INCOMPATIBLE_CATEGORY_PENALTY;
+  }
+
+  // Sem termos informativos compartilhados, um modulo generico ou diferente
+  // so permanece se a semelhanca semantica for realmente suficiente.
+  return lexicalScore === 0 && chunkCategory !== queryCategory
+    ? adjustment - NO_LEXICAL_SUPPORT_CATEGORY_PENALTY
+    : adjustment;
+}
+
+function extractRejectionCodes(input: string) {
+  const normalized = normalizeForSearch(input);
+
+  if (!normalized.includes("rejeicao")) {
+    return new Set<string>();
+  }
+
+  // Tres digitos, no contexto de "rejeicao", evita tratar anos e quantidades
+  // comuns como se fossem codigos fiscais.
+  return new Set(normalized.match(/\b[1-9]\d{2}\b/g) ?? []);
+}
+
+function getCodeAdjustment(queryCodes: Set<string>, searchableText: string) {
+  if (queryCodes.size === 0) {
+    return 0;
+  }
+
+  const chunkCodes = new Set(
+    normalizeForSearch(searchableText).match(/\b[1-9]\d{2}\b/g) ?? [],
+  );
+
+  if ([...queryCodes].some((code) => chunkCodes.has(code))) {
+    return EXACT_REJECTION_CODE_BOOST;
+  }
+
+  return chunkCodes.size > 0 ? -DIFFERENT_REJECTION_CODE_PENALTY : 0;
+}
+
+function tokenOverlap(left: string, right: string) {
+  const leftTokens = new Set(tokenize(left));
+  const rightTokens = new Set(tokenize(right));
+
+  if (leftTokens.size === 0 || rightTokens.size === 0) {
+    return 0;
+  }
+
+  const shared = [...leftTokens].filter((token) => rightTokens.has(token)).length;
+  return shared / Math.min(leftTokens.size, rightTokens.size);
+}
+
+function isNearDuplicate(
+  candidate: ScoredKnowledgeChunk,
+  selected: ScoredKnowledgeChunk,
+) {
+  const overlap = tokenOverlap(candidate.searchableText, selected.searchableText);
+  const sameSource = candidate.source === selected.source;
+  const sameTitle =
+    normalizeForSearch(candidate.title) === normalizeForSearch(selected.title);
+
+  return (
+    overlap >= NEAR_DUPLICATE_TOKEN_OVERLAP &&
+    (sameSource || sameTitle || overlap >= 0.95)
+  );
 }
 
 function createIndexedChunk(params: {
@@ -774,10 +1049,135 @@ export async function searchKnowledgeBase(
   query: string,
   limit = 4,
 ): Promise<RetrievedKnowledgeChunk[]> {
+  const search = await searchKnowledgeBaseWithDiagnostics(query, limit);
+  return search.results;
+}
+
+function rankKnowledgeChunks(
+  index: KnowledgeIndex,
+  query: string,
+  queryVector: number[],
+  limit: number,
+) {
+  const queryCodes = extractRejectionCodes(query);
+  const queryIntent = detectKnowledgeIntent(query);
+  const queryCategory = inferQueryCategory(query);
+  const queryTokens = tokenize(query);
+  const candidates: ScoredKnowledgeChunk[] = index.chunks.map((chunk) => {
+    const searchableText =
+      chunk.searchText ?? `${chunk.title}\n${chunk.excerpt}\n${chunk.content}`;
+    const semanticScore = cosineSimilarity(queryVector, chunk.embedding);
+    const lexicalScore = lexicalSimilarity(query, searchableText);
+    const codeAdjustment = getCodeAdjustment(queryCodes, searchableText);
+    const titleIntent = detectKnowledgeIntent(chunk.title);
+    const intentAdjustment = getIntentAdjustment(queryIntent, titleIntent);
+    const categoryAdjustment = getCategoryAdjustment(
+      queryCategory,
+      chunk.category,
+      lexicalScore,
+      queryIntent,
+      titleIntent,
+    );
+
+    return {
+      id: chunk.id,
+      title: chunk.title,
+      excerpt: chunk.excerpt,
+      content: chunk.content,
+      category: chunk.category,
+      source: chunk.source,
+      semanticScore,
+      lexicalScore,
+      codeAdjustment,
+      intentAdjustment,
+      categoryAdjustment,
+      titleIntent,
+      searchableText,
+      score:
+        semanticScore * 0.72 +
+        lexicalScore * 0.28 +
+        codeAdjustment +
+        intentAdjustment +
+        categoryAdjustment,
+      decision: "below-minimum-score",
+    };
+  });
+  const minimumCandidates = candidates
+    .filter((candidate) => candidate.score >= MINIMUM_RELEVANCE_SCORE)
+    .sort((left, right) => right.score - left.score);
+  const bestScore = minimumCandidates[0]?.score;
+  const relativeScoreFloor = bestScore
+    ? bestScore * RELATIVE_RELEVANCE_RATIO
+    : null;
+  const relativeCandidates = minimumCandidates.filter((candidate) => {
+    const approved =
+      relativeScoreFloor === null || candidate.score >= relativeScoreFloor;
+    candidate.decision = approved ? "approved" : "below-relative-score";
+    return approved;
+  });
+  const results: ScoredKnowledgeChunk[] = [];
+
+  for (const candidate of relativeCandidates) {
+    if (results.length >= Math.max(0, limit)) {
+      candidate.decision = "limit-reached";
+      continue;
+    }
+
+    if (results.some((selected) => isNearDuplicate(candidate, selected))) {
+      candidate.decision = "near-duplicate";
+      continue;
+    }
+
+    results.push(candidate);
+  }
+
+  return {
+    results: results.map(
+      ({
+        semanticScore: _semanticScore,
+        lexicalScore: _lexicalScore,
+        codeAdjustment: _codeAdjustment,
+        intentAdjustment: _intentAdjustment,
+        categoryAdjustment: _categoryAdjustment,
+        titleIntent: _titleIntent,
+        searchableText: _searchableText,
+        decision: _decision,
+        ...chunk
+      }) => chunk,
+    ),
+    diagnostic: {
+      query,
+      queryIntent,
+      queryCategory,
+      queryTokens,
+      minimumScore: MINIMUM_RELEVANCE_SCORE,
+      relativeScoreFloor,
+      entries: candidates
+        .sort((left, right) => right.score - left.score)
+        .map(({ searchableText: _searchableText, ...candidate }) => candidate),
+    } satisfies KnowledgeSearchDiagnostic,
+  };
+}
+
+async function searchKnowledgeBaseWithDiagnostics(
+  query: string,
+  limit = 4,
+) {
   const normalizedQuery = normalizeWhitespace(query);
 
   if (!normalizedQuery) {
-    return [];
+    return {
+      results: [] as RetrievedKnowledgeChunk[],
+      diagnostic: {
+        query,
+        queryIntent: detectKnowledgeIntent(query),
+        queryCategory: inferQueryCategory(query),
+        queryTokens: tokenize(query),
+        minimumScore: MINIMUM_RELEVANCE_SCORE,
+        relativeScoreFloor: null,
+        entries: [],
+      } satisfies KnowledgeSearchDiagnostic,
+    };
   }
 
   const index = await readKnowledgeIndex();
@@ -791,36 +1191,45 @@ export async function searchKnowledgeBase(
       );
     }
 
-    return [];
+    return {
+      results: [] as RetrievedKnowledgeChunk[],
+      diagnostic: {
+        query: normalizedQuery,
+        queryIntent: detectKnowledgeIntent(normalizedQuery),
+        queryCategory: inferQueryCategory(normalizedQuery),
+        queryTokens: tokenize(normalizedQuery),
+        minimumScore: MINIMUM_RELEVANCE_SCORE,
+        relativeScoreFloor: null,
+        entries: [],
+      } satisfies KnowledgeSearchDiagnostic,
+    };
   }
 
   if (index.chunks.length === 0) {
-    return [];
+    return {
+      results: [] as RetrievedKnowledgeChunk[],
+      diagnostic: {
+        query: normalizedQuery,
+        queryIntent: detectKnowledgeIntent(normalizedQuery),
+        queryCategory: inferQueryCategory(normalizedQuery),
+        queryTokens: tokenize(normalizedQuery),
+        minimumScore: MINIMUM_RELEVANCE_SCORE,
+        relativeScoreFloor: null,
+        entries: [],
+      } satisfies KnowledgeSearchDiagnostic,
+    };
   }
 
   const queryEmbedding = await createEmbeddings([normalizedQuery]);
   const queryVector = queryEmbedding[0];
 
-  return index.chunks
-    .map((chunk) => {
-      const searchableText =
-        chunk.searchText ?? `${chunk.title}\n${chunk.excerpt}\n${chunk.content}`;
-      const semanticScore = cosineSimilarity(queryVector, chunk.embedding);
-      const lexicalScore = lexicalSimilarity(normalizedQuery, searchableText);
-      const codeBoost = exactCodeBoost(normalizedQuery, searchableText);
-      const score = semanticScore * 0.72 + lexicalScore * 0.28 + codeBoost;
+  return rankKnowledgeChunks(index, normalizedQuery, queryVector, limit);
+}
 
-      return {
-        id: chunk.id,
-        title: chunk.title,
-        excerpt: chunk.excerpt,
-        content: chunk.content,
-        category: chunk.category,
-        source: chunk.source,
-        score,
-      };
-    })
-    .filter((chunk) => chunk.score >= MINIMUM_RELEVANCE_SCORE)
-    .sort((left, right) => right.score - left.score)
-    .slice(0, limit);
+export async function diagnoseKnowledgeSearch(
+  query: string,
+  limit = 4,
+): Promise<KnowledgeSearchDiagnostic> {
+  const search = await searchKnowledgeBaseWithDiagnostics(query, limit);
+  return search.diagnostic;
 }
