@@ -88,6 +88,11 @@ export interface KnowledgeHighlight {
   items: string[];
 }
 
+export interface KnowledgeOverviewStats {
+  ragAccuracy: string;
+  averageResponse: string;
+}
+
 export interface ChatCitation {
   id: string;
   title: string;

@@ -33,10 +33,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type {
   KnowledgeDocument,
-  KnowledgeHighlight,
   KnowledgeInput,
+  KnowledgeOverviewStats,
 } from "@/types";
 import { categoryLabels, formatShortDate } from "@/utils/format";
+import { getKnowledgeHighlights } from "@/utils/knowledge-highlights";
 
 const knowledgeCategories = [
   "NF_E",
@@ -49,12 +50,7 @@ const knowledgeCategories = [
 
 interface KnowledgeViewProps {
   initialDocuments: KnowledgeDocument[];
-  highlights: KnowledgeHighlight[];
-  stats: {
-    indexedDocs: number;
-    ragAccuracy: number;
-    averageResponse: string;
-  };
+  stats: KnowledgeOverviewStats;
 }
 
 const emptyForm: KnowledgeInput = {
@@ -67,7 +63,6 @@ const emptyForm: KnowledgeInput = {
 
 export function KnowledgeView({
   initialDocuments,
-  highlights,
   stats,
 }: KnowledgeViewProps) {
   const [documents, setDocuments] = useState(initialDocuments);
@@ -85,6 +80,10 @@ export function KnowledgeView({
       return haystack.includes(deferredSearch.toLowerCase());
     });
   }, [deferredSearch, documents]);
+  const highlights = useMemo(
+    () => getKnowledgeHighlights(documents),
+    [documents],
+  );
 
   function openCreateDialog() {
     setEditingId(null);
@@ -181,7 +180,7 @@ export function KnowledgeView({
             <CardHeader className="px-5 pt-5">
               <CardDescription>Documentos indexados</CardDescription>
               <CardTitle className="text-4xl font-semibold">
-                {stats.indexedDocs}
+                {documents.length}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -189,7 +188,7 @@ export function KnowledgeView({
             <CardHeader className="px-5 pt-5">
               <CardDescription>Precisao RAG</CardDescription>
               <CardTitle className="text-4xl font-semibold">
-                {stats.ragAccuracy}%
+                {stats.ragAccuracy}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -317,7 +316,7 @@ export function KnowledgeView({
               {editingId ? "Editar documento" : "Novo documento"}
             </DialogTitle>
             <DialogDescription>
-              Organize conteudo indexado para pesquisa, suporte e respostas do agente.
+              Cadastro administrativo; a indexacao RAG nao e automatica.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-5 px-6 pb-6 md:grid-cols-2">

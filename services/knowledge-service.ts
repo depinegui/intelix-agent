@@ -1,12 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import {
-  demoStore,
-  knowledgeHighlights,
-  prototypeDashboard,
-} from "@/database/demo-store";
+import { demoStore } from "@/database/demo-store";
 import { prisma } from "@/lib/prisma";
-import type { KnowledgeDocument, KnowledgeInput } from "@/types";
+import type {
+  KnowledgeDocument,
+  KnowledgeInput,
+  KnowledgeOverviewStats,
+} from "@/types";
 import { slugify } from "@/utils/format";
 
 const knowledgeSchema = z.object({
@@ -175,14 +175,17 @@ export async function searchKnowledgeDocuments(query: string, limit = 3) {
 
 export async function getKnowledgeOverview(search?: string) {
   const documents = await listKnowledgeDocuments(search);
+  const stats: KnowledgeOverviewStats = {
+    // A confianca salva nas mensagens e uma estimativa pontual do agente, nao
+    // uma avaliacao validada da precisao RAG. Ainda nao ha essa telemetria.
+    ragAccuracy: "Nao medido",
+    // O schema nao registra inicio/fim de cada resposta. Preservar este campo
+    // preparado para uma futura telemetria, sem apresentar uma estimativa.
+    averageResponse: "Nao medido",
+  };
 
   return {
     documents,
-    highlights: knowledgeHighlights,
-    stats: {
-      indexedDocs: prototypeDashboard.indexedDocs,
-      ragAccuracy: prototypeDashboard.ragAccuracy,
-      averageResponse: "<2s",
-    },
+    stats,
   };
 }

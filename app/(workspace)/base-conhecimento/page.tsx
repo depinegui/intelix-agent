@@ -7,7 +7,6 @@ export default async function KnowledgeBasePage() {
   return (
     <KnowledgeView
       initialDocuments={overview.documents}
-      highlights={overview.highlights}
       stats={overview.stats}
     />
   );
