@@ -60,22 +60,24 @@ function formatSources(value: number | null) {
 
 export function DashboardView({ snapshot }: DashboardViewProps) {
   return (
-    <div className="grid gap-4">
-      <section className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3">
+      <section className="grid gap-3 2xl:grid-cols-[1.45fr_0.55fr]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {snapshot.metrics.map((metric) => (
             <Card
               key={metric.label}
-              className="metric-glow rounded-[28px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]"
+              className="metric-glow min-h-40 shadow-sm"
             >
-              <CardHeader className="gap-3 px-5 pt-5">
-                <CardDescription>{metric.label}</CardDescription>
-                <CardTitle className="text-4xl font-semibold">
+              <CardHeader className="gap-2 px-4 pt-4">
+                <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">
+                  {metric.label}
+                </CardDescription>
+                <CardTitle className="text-3xl font-semibold tracking-[-0.025em]">
                   {metric.value}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-5 pb-5">
-                <p className="text-sm leading-6 text-muted-foreground">
+              <CardContent className="px-4 pb-4">
+                <p className="text-xs leading-5 text-muted-foreground">
                   {metric.detail}
                 </p>
               </CardContent>
@@ -83,21 +85,21 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
           ))}
         </div>
 
-        <Card className="rounded-[30px] border-none bg-[#f4fbfc] shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-          <CardHeader className="gap-3 px-6 pt-6">
+        <Card className="border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)]">
+          <CardHeader className="gap-2 px-5 pt-5">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <CardDescription>Base de Conhecimento</CardDescription>
-                <CardTitle className="text-4xl font-semibold">
+                <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Base de conhecimento</CardDescription>
+                <CardTitle className="text-3xl font-semibold">
                   {snapshot.indexedDocs}
                 </CardTitle>
               </div>
-              <div className="rounded-2xl bg-white/80 p-3 text-primary">
-                <Database className="size-6" />
+              <div className="rounded-lg border border-primary/15 bg-secondary/60 p-2.5 text-primary">
+                <Database className="size-5" />
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-5 px-6 pb-6">
+          <CardContent className="space-y-4 px-5 pb-5">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>Resolucao pela IA</span>
@@ -112,17 +114,17 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
               </div>
               <Progress value={snapshot.handoffRate} />
             </div>
-            <div className="rounded-[24px] border border-border/60 bg-white/85 p-4">
+            <div className="rounded-lg border border-border/80 bg-background/55 p-3.5">
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Clock3 className="size-4" />
                 Tempo medio de resposta da IA
               </div>
-              <p className="mt-3 text-3xl font-semibold text-foreground">
+              <p className="mt-2 text-2xl font-semibold text-foreground">
                 {formatResponseTime(snapshot.averageAiResponseTimeMs)}
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[20px] border border-border/60 bg-white/65 p-3">
+              <div className="rounded-lg border border-border/75 bg-background/50 p-3">
                 <p className="text-xs text-muted-foreground">Respostas com contexto</p>
                 <p className="mt-2 text-xl font-semibold text-foreground">
                   {formatPercentage(snapshot.contextCoverageRate, "Nao medido")}
@@ -131,7 +133,7 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
                   Apoiadas por conteudo recuperado
                 </p>
               </div>
-              <div className="rounded-[20px] border border-border/60 bg-white/65 p-3">
+              <div className="rounded-lg border border-border/75 bg-background/50 p-3">
                 <p className="text-xs text-muted-foreground">Respostas uteis</p>
                 <p className="mt-2 text-xl font-semibold text-foreground">
                   {formatPercentage(snapshot.helpfulFeedbackRate, "Sem avaliacoes")}
@@ -140,7 +142,7 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
                   Entre respostas avaliadas
                 </p>
               </div>
-              <div className="rounded-[20px] border border-border/60 bg-white/65 p-3 sm:col-span-2">
+              <div className="rounded-lg border border-border/75 bg-background/50 p-3 sm:col-span-2">
                 <p className="text-xs text-muted-foreground">
                   Fontes medias por resposta
                 </p>
@@ -153,60 +155,61 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
         </Card>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-          <CardHeader className="px-6 pt-6">
+      <section className="grid gap-3 2xl:grid-cols-[1.2fr_0.8fr]">
+        <Card className="border-border/80 shadow-sm">
+          <CardHeader className="border-b border-border/70 px-5 py-4">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <CardDescription>Atendimentos da Semana</CardDescription>
-                <CardTitle className="text-2xl font-semibold">
+                <CardTitle className="text-xl font-semibold">
                   Volume operacional
                 </CardTitle>
               </div>
-              <div className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground">
+              <div className="rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground">
                 <TrendingUp className="mr-2 inline size-4" />
                 {snapshot.weeklyPeakLabel}
               </div>
             </div>
           </CardHeader>
-          <CardContent className="h-[350px] px-2 pb-4 md:px-4">
+          <CardContent className="h-[320px] px-2 pb-3 md:px-3">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={snapshot.weeklyVolume}>
                 <defs>
                   <linearGradient id="intelixPrimary" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="#08b2c6" stopOpacity={0.5} />
-                    <stop offset="95%" stopColor="#08b2c6" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#178a98" stopOpacity={0.42} />
+                    <stop offset="95%" stopColor="#178a98" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="intelixSecondary" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="#31405d" stopOpacity={0.22} />
-                    <stop offset="95%" stopColor="#31405d" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#34465d" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#34465d" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="4 6" stroke="#dbe6eb" />
+                <CartesianGrid strokeDasharray="4 6" stroke="#d8e1e7" />
                 <XAxis
                   axisLine={false}
                   dataKey="day"
                   tickLine={false}
-                  tick={{ fill: "#708195", fontSize: 12 }}
+                  tick={{ fill: "#6b7b8d", fontSize: 12 }}
                 />
                 <Tooltip
                   contentStyle={{
-                    borderRadius: 18,
-                    border: "1px solid #dde7ec",
-                    boxShadow: "0 18px 36px rgba(15,24,40,0.12)",
+                    borderRadius: 8,
+                    border: "1px solid #d6e0e7",
+                    background: "#fbfcfd",
+                    boxShadow: "0 3px 10px rgba(31,45,61,0.08)",
                   }}
                 />
                 <Area
                   type="monotone"
                   dataKey="assisted"
-                  stroke="#08b2c6"
+                  stroke="#178a98"
                   fill="url(#intelixPrimary)"
                   strokeWidth={3}
                 />
                 <Area
                   type="monotone"
                   dataKey="escalated"
-                  stroke="#31405d"
+                  stroke="#34465d"
                   fill="url(#intelixSecondary)"
                   strokeWidth={2}
                 />
@@ -215,25 +218,25 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-          <CardHeader className="px-6 pt-6">
-            <CardDescription>Chamados Recentes</CardDescription>
-            <CardTitle className="text-2xl font-semibold">
+        <Card className="border-border/80 shadow-sm">
+          <CardHeader className="border-b border-border/70 px-5 py-4">
+            <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Chamados recentes</CardDescription>
+            <CardTitle className="text-xl font-semibold">
               Fila acompanhada pelo agente
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 px-6 pb-6">
+          <CardContent className="space-y-2 px-5 py-4">
             {snapshot.recentTickets.map((ticket) => (
               <div
                 key={ticket.id}
-                className="rounded-[24px] border border-border/70 bg-muted/45 p-4"
+                className="rounded-lg border border-border/70 bg-muted/30 p-3.5 transition-colors hover:bg-muted/55"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-foreground">
                       {ticket.protocol}
                     </p>
-                    <p className="mt-1 text-base text-foreground">{ticket.title}</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">{ticket.title}</p>
                   </div>
                   <Badge
                     className={ticketBadgeVariant(ticket.status)}
@@ -242,10 +245,10 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
                     {statusLabels[ticket.status]}
                   </Badge>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">
                   {ticket.description}
                 </p>
-                <p className="mt-3 text-xs text-muted-foreground">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Atualizado em {formatDateTime(ticket.updatedAt)}
                 </p>
               </div>

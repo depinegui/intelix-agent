@@ -1,60 +1,56 @@
 import { BrainCircuit, Database, KeyRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { env, isDatabaseEnabled, isOpenAiEnabled } from "@/lib/env";
+import { isDatabaseEnabled, isOpenAiEnabled } from "@/lib/env";
 import { requirePermission } from "@/lib/session";
 
 export default async function SettingsPage() {
   await requirePermission("VIEW_SETTINGS");
   return (
-    <div className="grid gap-4 xl:grid-cols-3">
-      <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-        <CardHeader className="px-6 pt-6">
-          <CardTitle className="flex items-center gap-3 text-2xl">
-            <Database className="size-6 text-primary" />
-            Banco de dados
+    <div className="grid gap-3 xl:grid-cols-3">
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader className="border-b border-border/70 px-5 py-4">
+          <CardTitle className="flex items-center gap-3 text-lg">
+            <Database className="size-5 text-primary" />
+            Dados e disponibilidade
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 px-6 pb-6 text-sm leading-7 text-muted-foreground">
-          <p>Status: {isDatabaseEnabled ? "Configurado" : "Modo demo ativo"}</p>
-          <p>Provider esperado: PostgreSQL</p>
+        <CardContent className="space-y-3 px-5 py-5 text-sm leading-6 text-muted-foreground">
+          <p>Status: {isDatabaseEnabled ? "Conexao ativa" : "Ambiente de demonstracao"}</p>
           <p>
             {isDatabaseEnabled
-              ? "O projeto vai usar Prisma + PostgreSQL para persistencia real."
-              : "Sem DATABASE_URL o sistema continua funcional em memoria para demonstracao."}
+              ? "As informações do ambiente estão disponíveis para o trabalho diário."
+              : "Este ambiente está preparado para demonstração e treinamento."}
           </p>
         </CardContent>
       </Card>
 
-      <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-        <CardHeader className="px-6 pt-6">
-          <CardTitle className="flex items-center gap-3 text-2xl">
-            <BrainCircuit className="size-6 text-primary" />
-            OpenAI e agentes
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader className="border-b border-border/70 px-5 py-4">
+          <CardTitle className="flex items-center gap-3 text-lg">
+            <BrainCircuit className="size-5 text-primary" />
+            Assistente inteligente
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 px-6 pb-6 text-sm leading-7 text-muted-foreground">
-          <p>Status do SDK: {isOpenAiEnabled ? "Chave configurada" : "Fallback local"}</p>
-          <p>Modelo padrao: {env.openAiModel}</p>
+        <CardContent className="space-y-3 px-5 py-5 text-sm leading-6 text-muted-foreground">
+          <p>Status: {isOpenAiEnabled ? "Disponivel" : "Base de conhecimento disponivel"}</p>
           <p>
-            Mesmo sem chave, o chat continua funcional usando contexto local da
-            base de conhecimento e historico de chamados.
+            O atendimento utiliza informações disponíveis para orientar as respostas.
           </p>
         </CardContent>
       </Card>
 
-      <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-        <CardHeader className="px-6 pt-6">
-          <CardTitle className="flex items-center gap-3 text-2xl">
-            <KeyRound className="size-6 text-primary" />
-            Sessao e seguranca
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader className="border-b border-border/70 px-5 py-4">
+          <CardTitle className="flex items-center gap-3 text-lg">
+            <KeyRound className="size-5 text-primary" />
+            Acesso e seguranca
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 px-6 pb-6 text-sm leading-7 text-muted-foreground">
-          <p>Autenticacao: JWT via cookie HTTP-only</p>
-          <p>Escopo atual: login, cadastro, recuperacao e logout</p>
+        <CardContent className="space-y-3 px-5 py-5 text-sm leading-6 text-muted-foreground">
+          <p>Acesso protegido por sessão autenticada.</p>
+          <p>Perfis de acesso aplicados às áreas do ambiente.</p>
           <p>
-            O middleware protege rotas autenticadas e a verificacao completa da
-            sessao acontece no servidor.
+            As permissões são verificadas antes de cada operação disponível.
           </p>
         </CardContent>
       </Card>

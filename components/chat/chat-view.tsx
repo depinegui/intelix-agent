@@ -185,64 +185,64 @@ export function ChatView({
   const confidence = lastAssistantMessage?.confidence ?? 0;
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <div className="grid gap-4">
-        <section className="grid gap-4 md:grid-cols-3">
-          <Card className="rounded-[28px] border-none bg-[#f4fbfc] shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-            <CardHeader className="px-5 pt-5">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">
-                Contexto RAG
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-3">
+        <section className="grid gap-3 sm:grid-cols-3">
+          <Card className="border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)]">
+            <CardHeader className="px-4 pt-4">
+              <CardTitle className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                Base de conhecimento
               </CardTitle>
             </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <p className="text-3xl font-semibold text-foreground">Ativo</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Recuperacao vetorial dos documentos indexados em /knowledge.
+            <CardContent className="px-4 pb-4">
+              <p className="text-2xl font-semibold text-foreground">Ativa</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Conteudos relevantes apoiam as respostas.
               </p>
             </CardContent>
           </Card>
-          <Card className="rounded-[28px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-            <CardHeader className="px-5 pt-5">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">
+          <Card className="border-border/80 shadow-sm">
+            <CardHeader className="px-4 pt-4">
+              <CardTitle className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
                 Fontes recuperadas
               </CardTitle>
             </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <p className="text-3xl font-semibold text-foreground">
+            <CardContent className="px-4 pb-4">
+              <p className="text-2xl font-semibold text-foreground">
                 {sourceCount}
               </p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Trechos recuperados da base de conhecimento para esta resposta.
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Referencias usadas na ultima resposta.
               </p>
             </CardContent>
           </Card>
-          <Card className="rounded-[28px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-            <CardHeader className="px-5 pt-5">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">
+          <Card className="border-border/80 shadow-sm">
+            <CardHeader className="px-4 pt-4">
+              <CardTitle className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
                 Confianca da resposta
               </CardTitle>
             </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <p className="text-3xl font-semibold text-foreground">
+            <CardContent className="px-4 pb-4">
+              <p className="text-2xl font-semibold text-foreground">
                 {confidence ? `${confidence}%` : "--"}
               </p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Score baseado em aderencia ao contexto recuperado.
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Indicador de aderencia ao contexto.
               </p>
             </CardContent>
           </Card>
         </section>
 
-        <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-          <CardHeader className="flex flex-row items-center justify-between gap-4 px-6 pt-6">
+        <Card className="border-border/80 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/70 px-5 py-4">
             <div className="flex items-center gap-3">
               <History className="size-5 text-primary" />
-              <CardTitle className="text-xl font-semibold">Conversas</CardTitle>
+              <CardTitle className="text-base font-semibold">Conversas</CardTitle>
             </div>
             <Button
               type="button"
               variant="outline"
-              className="rounded-2xl"
+              className="rounded-lg"
               onClick={startNewConversation}
               disabled={sending || Boolean(openingConversationId)}
             >
@@ -250,14 +250,14 @@ export function ChatView({
               Nova conversa
             </Button>
           </CardHeader>
-          <CardContent className="flex gap-3 overflow-x-auto px-6 pb-6">
+          <CardContent className="flex gap-2 overflow-x-auto px-5 py-3">
             {conversations.length ? (
               conversations.map((conversation) => (
                 <Button
                   key={conversation.id}
                   type="button"
                   variant={conversation.id === conversationId ? "secondary" : "outline"}
-                  className="h-auto min-w-52 shrink-0 items-start rounded-2xl px-4 py-3 text-left"
+                  className="h-auto min-w-48 shrink-0 items-start rounded-lg px-3 py-2.5 text-left"
                   onClick={() => openConversation(conversation.id)}
                   disabled={sending || Boolean(openingConversationId)}
                 >
@@ -279,17 +279,17 @@ export function ChatView({
           </CardContent>
         </Card>
 
-        <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-          <CardContent className="flex h-[640px] flex-col px-0 pb-0">
+        <Card className="border-border/80 shadow-sm">
+          <CardContent className="flex h-[calc(100vh-330px)] min-h-[540px] flex-col px-0 pb-0">
             <div
               ref={scrollRef}
-              className="flex-1 space-y-6 overflow-y-auto px-6 py-6"
+              className="flex-1 space-y-5 overflow-y-auto px-5 py-5"
             >
               {messages.length === 0 ? (
-                <div className="rounded-[28px] border border-dashed border-border p-6 text-sm leading-7 text-muted-foreground">
-                  Inicie a conversa com um erro de ERP, rejeicao fiscal ou
-                  duvida operacional. O agente vai consultar a base indexada e
-                  responder apenas com o que encontrar nela.
+                <div className="rounded-xl border border-dashed border-border bg-muted/25 p-5 text-sm leading-6 text-muted-foreground">
+                  Comece descrevendo uma dúvida operacional ou um erro
+                  encontrado. As respostas serão orientadas pelo conteúdo
+                  disponível na base de conhecimento.
                 </div>
               ) : null}
 
@@ -301,13 +301,13 @@ export function ChatView({
                     className={`flex ${assistant ? "justify-start" : "justify-end"}`}
                   >
                     <div
-                      className={`max-w-[86%] rounded-[28px] px-5 py-4 ${
+                      className={`max-w-[86%] rounded-xl px-4 py-3.5 ${
                         assistant
-                          ? "bg-muted/55 text-foreground"
-                          : "bg-primary text-primary-foreground"
+                          ? "border border-border/80 bg-muted/55 text-foreground"
+                          : "border border-primary/20 bg-primary text-primary-foreground"
                       }`}
                     >
-                      <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.2em] opacity-70">
+                      <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] opacity-70">
                         {assistant ? (
                           <Bot className="size-4" />
                         ) : (
@@ -315,7 +315,7 @@ export function ChatView({
                         )}
                         {assistant ? "Intelix Agent" : "Voce"}
                       </div>
-                      <p className="whitespace-pre-wrap text-sm leading-7">
+                      <p className="whitespace-pre-wrap text-sm leading-6">
                         {message.content}
                       </p>
                       <div className="mt-3 flex items-center justify-between gap-4 text-xs opacity-70">
@@ -332,7 +332,7 @@ export function ChatView({
                             variant={
                               message.feedback === "HELPFUL" ? "secondary" : "ghost"
                             }
-                            className="h-7 rounded-xl px-2 text-xs"
+                            className="h-7 rounded-md px-2 text-xs"
                             onClick={() =>
                               updateFeedback(
                                 message.id,
@@ -353,7 +353,7 @@ export function ChatView({
                                 ? "secondary"
                                 : "ghost"
                             }
-                            className="h-7 rounded-xl px-2 text-xs"
+                            className="h-7 rounded-md px-2 text-xs"
                             onClick={() =>
                               updateFeedback(
                                 message.id,
@@ -376,25 +376,24 @@ export function ChatView({
 
             <form
               onSubmit={handleSubmit}
-              className="border-t border-border/70 bg-muted/35 p-5"
+              className="border-t border-border/80 bg-muted/35 p-4"
             >
               <div className="grid gap-4">
                 <Textarea
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
                   rows={4}
-                  className="rounded-[24px] border-white/70 bg-white"
+                  className="min-h-24 rounded-lg border-border bg-background/75"
                   placeholder='Ex.: "Estou com erro ao emitir NF-e. Aparece a mensagem Rejeicao 539."'
                 />
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm text-muted-foreground">
-                    Se a base ainda nao estiver indexada, execute npm run
-                    index:knowledge.
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    As respostas utilizam o conteúdo disponível para atendimento.
                   </p>
                   <Button
                     type="submit"
                     size="lg"
-                    className="h-12 rounded-2xl px-6"
+                    className="h-10 rounded-lg px-5"
                     disabled={sending || Boolean(openingConversationId)}
                   >
                     {sending ? (
@@ -416,19 +415,19 @@ export function ChatView({
         </Card>
       </div>
 
-      <div className="grid gap-4">
-        <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-          <CardHeader className="px-6 pt-6">
-            <CardTitle className="text-2xl font-semibold">
-              Fontes recuperadas para esta conversa
+      <div className="grid content-start gap-3">
+        <Card className="border-border/80 shadow-sm">
+          <CardHeader className="border-b border-border/70 px-5 py-4">
+            <CardTitle className="text-base font-semibold">
+              Fontes da resposta
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 px-6 pb-6">
+          <CardContent className="space-y-3 px-5 py-4">
             {lastAssistantMessage?.citations?.length ? (
               lastAssistantMessage.citations.map((citation) => (
                 <div
                   key={citation.id}
-                  className="rounded-[24px] border border-border/70 bg-muted/45 p-4"
+                  className="rounded-lg border border-border/70 bg-muted/35 p-3.5"
                 >
                   <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                     <Sparkles className="size-4 text-primary" />
@@ -437,12 +436,7 @@ export function ChatView({
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {citation.excerpt}
                   </p>
-                  {citation.source ? (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Arquivo: {citation.source}
-                    </p>
-                  ) : null}
-                  <p className="mt-3 text-xs tracking-[0.2em] text-primary/70 uppercase">
+                  <p className="mt-3 text-[10px] font-semibold tracking-[0.16em] text-primary/70 uppercase">
                     {citation.kind === "knowledge"
                       ? "Base de conhecimento"
                       : "Historico do cliente"}
@@ -450,25 +444,24 @@ export function ChatView({
                 </div>
               ))
             ) : (
-              <div className="rounded-[24px] border border-dashed border-border p-4 text-sm leading-6 text-muted-foreground">
-                As fontes aparecem aqui sempre que o agente localizar trechos
-                relevantes na base indexada.
+              <div className="rounded-lg border border-dashed border-border bg-muted/25 p-4 text-sm leading-6 text-muted-foreground">
+                As referencias utilizadas aparecerão aqui quando houver conteúdo
+                relevante para a resposta.
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="rounded-[30px] border-none bg-[#f4fbfc] shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-          <CardHeader className="px-6 pt-6">
-            <CardTitle className="text-2xl font-semibold">
-              Estrutura de IA preparada
+        <Card className="border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)]">
+          <CardHeader className="px-5 pt-4">
+            <CardTitle className="text-base font-semibold">
+              Atendimento assistido
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 px-6 pb-6 text-sm leading-7 text-muted-foreground">
-            <p>OpenAI SDK conectado ao endpoint dedicado do agente.</p>
-            <p>Indexacao local com embeddings e busca por similaridade.</p>
-            <p>Persistencia segura com redacao de dados sensiveis na conversa.</p>
-            <p>Estrutura preparada para evoluir de arquivo local para pgvector.</p>
+          <CardContent className="space-y-2 px-5 pb-5 text-sm leading-6 text-muted-foreground">
+            <p>Respostas orientadas pelos conteúdos disponíveis.</p>
+            <p>Histórico da conversa mantido para dar continuidade ao atendimento.</p>
+            <p>Informações sensíveis são tratadas com cuidado durante a conversa.</p>
           </CardContent>
         </Card>
       </div>

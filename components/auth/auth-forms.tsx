@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 export function LoginForm() {
   const router = useRouter();
@@ -68,7 +67,7 @@ export function LoginForm() {
             name="identifier"
             autoComplete="username"
             placeholder="Informe seu e-mail ou documento"
-            className="h-12 rounded-2xl"
+            className="h-10 rounded-lg"
             required
           />
         </div>
@@ -80,14 +79,14 @@ export function LoginForm() {
             type="password"
             autoComplete="current-password"
             placeholder="••••••••"
-            className="h-12 rounded-2xl"
+            className="h-10 rounded-lg"
             required
           />
         </div>
         <Button
           type="submit"
           size="lg"
-          className="h-12 w-full rounded-2xl"
+          className="h-10 w-full rounded-lg"
           disabled={loading}
         >
           {loading ? "Entrando..." : "Entrar no Intelix"}
@@ -156,7 +155,7 @@ export function RegisterForm() {
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="register-name">Nome</Label>
-          <Input id="register-name" name="name" className="h-12 rounded-2xl" />
+          <Input id="register-name" name="name" className="h-10 rounded-lg" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="register-email">E-mail</Label>
@@ -164,7 +163,7 @@ export function RegisterForm() {
             id="register-email"
             name="email"
             type="email"
-            className="h-12 rounded-2xl"
+            className="h-10 rounded-lg"
           />
         </div>
         <div className="space-y-2">
@@ -173,7 +172,7 @@ export function RegisterForm() {
             value={companyType}
             onValueChange={(value) => setCompanyType(value ?? "JURIDICA")}
           >
-            <SelectTrigger className="h-12 w-full rounded-2xl">
+            <SelectTrigger className="h-10 w-full rounded-lg">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -187,7 +186,7 @@ export function RegisterForm() {
           <Input
             id="register-document"
             name="document"
-            className="h-12 rounded-2xl"
+            className="h-10 rounded-lg"
           />
         </div>
         <div className="space-y-2">
@@ -195,7 +194,7 @@ export function RegisterForm() {
           <Input
             id="register-phone"
             name="phone"
-            className="h-12 rounded-2xl"
+            className="h-10 rounded-lg"
           />
         </div>
         <div className="space-y-2">
@@ -204,7 +203,7 @@ export function RegisterForm() {
             id="register-password"
             name="password"
             type="password"
-            className="h-12 rounded-2xl"
+            className="h-10 rounded-lg"
           />
         </div>
       </div>
@@ -212,7 +211,7 @@ export function RegisterForm() {
       <Button
         type="submit"
         size="lg"
-        className="h-12 w-full rounded-2xl"
+        className="h-10 w-full rounded-lg"
         disabled={loading}
       >
         {loading ? "Criando conta..." : "Criar conta"}
@@ -284,7 +283,7 @@ export function RecoveryForm() {
           id="recovery-email"
           name="email"
           type="email"
-          className="h-12 rounded-2xl"
+          className="h-10 rounded-lg"
         />
       </div>
       <div className="space-y-2">
@@ -293,7 +292,7 @@ export function RecoveryForm() {
           id="recovery-password"
           name="password"
           type="password"
-          className="h-12 rounded-2xl"
+          className="h-10 rounded-lg"
         />
       </div>
       <div className="space-y-2">
@@ -302,14 +301,14 @@ export function RecoveryForm() {
           id="recovery-confirm-password"
           name="confirmPassword"
           type="password"
-          className="h-12 rounded-2xl"
+          className="h-10 rounded-lg"
         />
       </div>
 
       <Button
         type="submit"
         size="lg"
-        className="h-12 w-full rounded-2xl"
+        className="h-10 w-full rounded-lg"
         disabled={loading}
       >
         {loading ? "Atualizando..." : "Atualizar senha"}

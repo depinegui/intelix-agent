@@ -126,19 +126,19 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
 
   return (
     <>
-      <div className="surface-card p-6">
-        <div className="mb-5 grid gap-4 md:grid-cols-[1fr_220px]">
+      <div className="surface-card overflow-hidden">
+        <div className="grid gap-3 border-b border-border/70 bg-muted/20 p-4 md:grid-cols-[1fr_210px] md:p-5">
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-12 rounded-2xl"
+            className="h-10 rounded-lg bg-background/70"
             placeholder="Buscar por protocolo, titulo ou descricao"
           />
           <Select
             value={statusFilter}
             onValueChange={(value) => setStatusFilter(value ?? "TODOS")}
           >
-            <SelectTrigger className="h-12 w-full rounded-2xl">
+            <SelectTrigger className="h-10 w-full rounded-lg bg-background/70">
               <SelectValue placeholder="Filtrar status" />
             </SelectTrigger>
             <SelectContent>
@@ -152,6 +152,7 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
           </Select>
         </div>
 
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -161,17 +162,17 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
               <TableHead>Prioridade</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Atualizado em</TableHead>
-              <TableHead className="text-right">Acoes</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTickets.map((ticket) => (
-              <TableRow key={ticket.id}>
+              <TableRow key={ticket.id} className="transition-colors hover:bg-muted/35">
                 <TableCell className="font-semibold">{ticket.protocol}</TableCell>
                 <TableCell>
                   <div className="space-y-1">
                     <p className="font-medium text-foreground">{ticket.title}</p>
-                    <p className="max-w-[440px] truncate text-sm text-muted-foreground">
+                    <p className="max-w-[360px] truncate text-sm text-muted-foreground">
                       {ticket.description}
                     </p>
                   </div>
@@ -187,7 +188,7 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
                 <TableCell className="text-right">
                   <Button
                     variant="outline"
-                    className="rounded-2xl"
+                    className="h-8 rounded-md"
                     onClick={() => {
                       setSelectedTicket(ticket);
                       setNextStatus(ticket.status);
@@ -202,6 +203,7 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       <Dialog
@@ -212,21 +214,21 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
           }
         }}
       >
-        <DialogContent className="max-w-xl rounded-[28px] p-0">
-          <DialogHeader className="px-6 pt-6">
+        <DialogContent className="max-w-xl rounded-xl p-0">
+          <DialogHeader className="border-b border-border/70 px-5 py-4">
             <DialogTitle>Atualizar chamado</DialogTitle>
             <DialogDescription>
               Ajuste o status e registre uma observacao operacional no historico.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-5 px-6 pb-6">
+          <div className="space-y-4 px-5 py-5">
             <div className="space-y-2">
               <Label>Status</Label>
               <Select
                 value={nextStatus}
                 onValueChange={(value) => setNextStatus(value as TicketStatus)}
               >
-                <SelectTrigger className="h-12 w-full rounded-2xl">
+                <SelectTrigger className="h-10 w-full rounded-lg">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -245,7 +247,7 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
                 rows={5}
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                className="rounded-2xl"
+                className="rounded-lg"
                 placeholder="Descreva a atualizacao realizada."
               />
             </div>

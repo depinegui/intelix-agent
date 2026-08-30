@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | Intelix Agent",
   },
   description:
-    "Plataforma fullstack de suporte tecnico com agentes autonomos, RAG e gestao de chamados para ERP.",
+    "Plataforma de suporte técnico inteligente para sistemas de gestão empresarial.",
 };
 
 export default function RootLayout({
@@ -42,7 +42,7 @@ export default function RootLayout({
           toastOptions={{
             classNames: {
               toast:
-                "rounded-2xl border border-border/70 bg-card text-card-foreground shadow-xl",
+                "rounded-lg border border-border/70 bg-card text-card-foreground shadow-lg",
             },
           }}
         />

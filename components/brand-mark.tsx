@@ -11,8 +11,8 @@ export function BrandMark({ inverted, compact }: BrandMarkProps) {
     <div className="flex items-center gap-3">
       <div
         className={cn(
-          "flex size-12 items-center justify-center rounded-2xl border border-white/15 bg-primary/18 text-primary shadow-[0_18px_36px_rgba(8,178,198,0.18)]",
-          compact && "size-10 rounded-xl",
+          "flex size-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-none",
+          compact && "size-9 rounded-lg",
           inverted && "border-white/20 bg-white/10 text-white shadow-none",
         )}
       >
@@ -21,7 +21,7 @@ export function BrandMark({ inverted, compact }: BrandMarkProps) {
       <div className="space-y-0.5">
         <p
           className={cn(
-            "text-sm font-semibold tracking-[0.28em] text-primary/80 uppercase",
+            "text-[11px] font-semibold tracking-[0.22em] text-primary/80 uppercase",
             inverted && "text-white/70",
           )}
         >
@@ -29,7 +29,7 @@ export function BrandMark({ inverted, compact }: BrandMarkProps) {
         </p>
         <p
           className={cn(
-            "text-lg font-semibold text-foreground",
+            "text-base font-semibold text-foreground",
             compact && "text-base",
             inverted && "text-white",
           )}

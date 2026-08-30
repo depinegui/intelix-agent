@@ -1,30 +1,25 @@
 @layer base {
   body {
-    background:
-      radial-gradient(circle at top left, rgba(7, 178, 198, 0.16), transparent 34%),
-      radial-gradient(circle at 88% 12%, rgba(17, 24, 39, 0.08), transparent 22%),
-      linear-gradient(180deg, #eef5f7 0%, #f4f7f8 48%, #edf3f5 100%);
+    background: #eef2f5;
   }
 
   ::selection {
-    background: rgba(8, 178, 198, 0.22);
-    color: #0f1828;
+    background: rgba(20, 125, 139, 0.18);
+    color: #243143;
   }
 }
 
 @layer components {
   .surface-card {
-    @apply rounded-[28px] border border-white/80 bg-white shadow-[0_24px_60px_rgba(15,24,40,0.08)];
+    @apply rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)];
   }
 
   .surface-card-muted {
-    @apply rounded-[24px] border border-border/70 bg-muted/55 shadow-[0_14px_34px_rgba(15,24,40,0.05)];
+    @apply rounded-lg border border-border/85 bg-muted/55 shadow-none;
   }
 
   .sidebar-shell {
-    background:
-      radial-gradient(circle at top, rgba(17, 200, 220, 0.18), transparent 30%),
-      linear-gradient(180deg, #141b2b 0%, #101725 100%);
+    background: #202c3d;
   }
 
   .hero-shell {
@@ -35,9 +30,7 @@
   }
 
   .teal-outline {
-    box-shadow:
-      0 0 0 1px rgba(8, 178, 198, 0.16),
-      0 22px 44px rgba(8, 178, 198, 0.13);
+    box-shadow: 0 0 0 1px rgba(20, 125, 139, 0.16);
   }
 
   .grid-overlay {
@@ -48,8 +41,6 @@
   }
 
   .metric-glow {
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.86)),
-      radial-gradient(circle at top right, rgba(8, 178, 198, 0.16), transparent 42%);
+    @apply border border-border/80 bg-card;
   }
 }

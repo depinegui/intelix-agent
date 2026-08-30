@@ -74,15 +74,19 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_0.42fr]">
-      <form onSubmit={handleSubmit} className="surface-card space-y-5 p-6">
-        <div className="grid gap-5 md:grid-cols-2">
+    <div className="grid gap-3 2xl:grid-cols-[minmax(0,1fr)_340px]">
+      <form onSubmit={handleSubmit} className="surface-card space-y-5 p-5 md:p-6">
+        <div className="border-b border-border/70 pb-4">
+          <p className="text-sm font-semibold text-foreground">Dados do chamado</p>
+          <p className="mt-1 text-sm text-muted-foreground">Registre o contexto necessário para a análise inicial.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="ticket-title">Titulo do Chamado</Label>
             <Input
               id="ticket-title"
               name="title"
-              className="h-12 rounded-2xl"
+              className="h-10 rounded-lg"
               placeholder="Ex: Erro na emissao de NF-e"
             />
           </div>
@@ -91,7 +95,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
             <Input
               id="ticket-protocol"
               name="protocol"
-              className="h-12 rounded-2xl"
+              className="h-10 rounded-lg"
               placeholder={protocolPreview}
             />
           </div>
@@ -101,7 +105,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
               value={category}
               onValueChange={(value) => setCategory(value ?? "NF_E")}
             >
-              <SelectTrigger className="h-12 w-full rounded-2xl">
+              <SelectTrigger className="h-10 w-full rounded-lg">
                 <SelectValue placeholder="Selecione a categoria" />
               </SelectTrigger>
               <SelectContent>
@@ -119,7 +123,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
               value={priority}
               onValueChange={(value) => setPriority(value ?? "MEDIA")}
             >
-              <SelectTrigger className="h-12 w-full rounded-2xl">
+              <SelectTrigger className="h-10 w-full rounded-lg">
                 <SelectValue placeholder="Selecione a prioridade" />
               </SelectTrigger>
               <SelectContent>
@@ -136,7 +140,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
             <Input
               id="ticket-status"
               value="Aguardando abertura"
-              className="h-12 rounded-2xl"
+              className="h-10 rounded-lg bg-muted/40"
               disabled
             />
           </div>
@@ -148,7 +152,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
             id="ticket-description"
             name="description"
             rows={10}
-            className="rounded-[24px]"
+            className="rounded-lg"
             placeholder="Descreva detalhadamente o problema encontrado, impacto no processo e evidencias ja coletadas."
           />
         </div>
@@ -157,7 +161,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
           <Button
             type="submit"
             size="lg"
-            className="h-12 rounded-2xl px-6"
+            className="h-10 rounded-lg px-5"
             disabled={loading}
           >
             {loading ? "Abrindo..." : "Abrir Chamado"}
@@ -166,7 +170,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
             type="button"
             variant="outline"
             size="lg"
-            className="h-12 rounded-2xl px-6"
+            className="h-10 rounded-lg px-5"
             onClick={() => router.push("/chamados")}
           >
             Cancelar
@@ -175,15 +179,15 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
       </form>
 
       <div className="grid gap-4">
-        <div className="surface-card space-y-5 p-6">
+        <div className="surface-card space-y-4 p-5">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-primary/12 p-3 text-primary">
-              <Bot className="size-6" />
+            <div className="rounded-lg bg-primary/12 p-2.5 text-primary">
+              <Bot className="size-5" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Triagem por IA</p>
-              <p className="text-xl font-semibold text-foreground">
-                Analise automatica inicial
+              <p className="text-lg font-semibold text-foreground">
+                Análise inicial assistida
               </p>
             </div>
           </div>
@@ -193,7 +197,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
               de conhecimento e propor uma resolucao inicial sempre que
               encontrar um caso conhecido.
             </p>
-            <div className="rounded-[24px] border border-border/70 bg-muted/45 p-4">
+            <div className="rounded-lg border border-border/70 bg-muted/35 p-3.5">
               <div className="flex items-start gap-3">
                 <SearchCode className="mt-1 size-4 text-primary" />
                 <span>Busca de solucoes similares em historico de chamados.</span>

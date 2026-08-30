@@ -178,47 +178,47 @@ export function KnowledgeView({
 
   return (
     <>
-      <div className="grid gap-4">
-        <section className="grid gap-4 md:grid-cols-3">
-          <Card className="rounded-[28px] border-none bg-[#f4fbfc] shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-            <CardHeader className="px-5 pt-5">
-              <CardDescription>Documentos indexados</CardDescription>
-              <CardTitle className="text-4xl font-semibold">
+      <div className="grid gap-3">
+        <section className="grid gap-3 md:grid-cols-3">
+          <Card className="border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)]">
+            <CardHeader className="px-4 pt-4">
+              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Documentos disponíveis</CardDescription>
+              <CardTitle className="text-3xl font-semibold">
                 {documents.length}
               </CardTitle>
             </CardHeader>
           </Card>
-          <Card className="rounded-[28px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-            <CardHeader className="px-5 pt-5">
-              <CardDescription>Precisao RAG</CardDescription>
-              <CardTitle className="text-4xl font-semibold">
+          <Card className="border-border/80 shadow-sm">
+            <CardHeader className="px-4 pt-4">
+              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Qualidade das respostas</CardDescription>
+              <CardTitle className="text-3xl font-semibold">
                 {stats.ragAccuracy}
               </CardTitle>
             </CardHeader>
           </Card>
-          <Card className="rounded-[28px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
-            <CardHeader className="px-5 pt-5">
-              <CardDescription>Tempo medio de resposta</CardDescription>
-              <CardTitle className="text-4xl font-semibold">
+          <Card className="border-border/80 shadow-sm">
+            <CardHeader className="px-4 pt-4">
+              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Tempo de resposta</CardDescription>
+              <CardTitle className="text-3xl font-semibold">
                 {stats.averageResponse}
               </CardTitle>
             </CardHeader>
           </Card>
         </section>
 
-        <section className="surface-card p-6">
-          <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <section className="surface-card p-4 md:p-5">
+          <div className="mb-5 flex flex-col gap-3 border-b border-border/70 pb-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="relative w-full xl:max-w-xl">
               <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="h-12 rounded-2xl pl-11"
+                className="h-10 rounded-lg bg-muted/20 pl-11"
                 placeholder="Buscar na base de conhecimento..."
               />
             </div>
             {canManage ? (
-              <Button onClick={openCreateDialog} size="lg" className="h-12 rounded-2xl px-6">
+              <Button onClick={openCreateDialog} size="lg" className="h-10 rounded-lg px-5">
                 <Plus className="size-4" />
                 Novo documento
               </Button>
@@ -229,11 +229,11 @@ export function KnowledgeView({
             {highlights.map((highlight) => (
               <div
                 key={highlight.category}
-                className="rounded-[26px] border border-border/70 bg-muted/45 p-5"
+              className="rounded-lg border border-border/70 bg-muted/30 p-4"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-lg font-semibold text-foreground">
+                    <p className="text-base font-semibold text-foreground">
                       {highlight.label}
                     </p>
                     <p className="text-sm text-muted-foreground">
@@ -246,7 +246,7 @@ export function KnowledgeView({
                   {highlight.items.map((item) => (
                     <span
                       key={item}
-                      className="rounded-full bg-white px-3 py-1 text-xs text-muted-foreground"
+                      className="rounded-md border border-border/70 bg-background/60 px-2.5 py-1 text-xs text-muted-foreground"
                     >
                       {item}
                     </span>
@@ -257,34 +257,34 @@ export function KnowledgeView({
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <section className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
           {filteredDocuments.map((document) => (
             <Card
               key={document.id}
-              className="rounded-[28px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]"
+              className="border-border shadow-[0_1px_2px_rgba(31,45,61,0.035)] transition-shadow hover:shadow-[0_3px_10px_rgba(31,45,61,0.07)]"
             >
-              <CardHeader className="px-5 pt-5">
+              <CardHeader className="px-4 pt-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <CardDescription>
                       {categoryLabels[document.category]}
                     </CardDescription>
-                    <CardTitle className="mt-2 text-2xl font-semibold">
+                    <CardTitle className="mt-1 text-xl font-semibold">
                       {document.title}
                     </CardTitle>
                   </div>
                   <Badge variant="secondary">{document.views} views</Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 px-5 pb-5">
-                <p className="text-sm leading-7 text-muted-foreground">
+              <CardContent className="space-y-3 px-4 pb-4">
+                <p className="text-sm leading-6 text-muted-foreground">
                   {document.excerpt}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {document.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground"
+                      className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground"
                     >
                       {tag}
                     </span>
@@ -297,7 +297,7 @@ export function KnowledgeView({
                       {canManage ? (
                         <Button
                           variant="outline"
-                          className="rounded-2xl"
+                          className="size-8 rounded-md"
                           onClick={() => openEditDialog(document)}
                         >
                           <Edit3 className="size-4" />
@@ -306,7 +306,7 @@ export function KnowledgeView({
                       {canDelete ? (
                         <Button
                           variant="outline"
-                          className="rounded-2xl"
+                          className="size-8 rounded-md"
                           onClick={() => handleDelete(document.id)}
                         >
                           <Trash2 className="size-4" />
@@ -322,16 +322,17 @@ export function KnowledgeView({
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl rounded-[28px] p-0">
-          <DialogHeader className="px-6 pt-6">
+        <DialogContent className="max-w-3xl rounded-xl p-0">
+          <DialogHeader className="border-b border-border/70 px-5 py-4">
             <DialogTitle>
               {editingId ? "Editar documento" : "Novo documento"}
             </DialogTitle>
             <DialogDescription>
-              Cadastro administrativo; a indexacao RAG nao e automatica.
+              O cadastro organiza esta base. A disponibilidade no assistente
+              pode depender de atualização administrativa.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-5 px-6 pb-6 md:grid-cols-2">
+          <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="knowledge-title">Titulo</Label>
               <Input
@@ -340,7 +341,7 @@ export function KnowledgeView({
                 onChange={(event) =>
                   setForm((current) => ({ ...current, title: event.target.value }))
                 }
-                className="h-12 rounded-2xl"
+                className="h-10 rounded-lg"
               />
             </div>
             <div className="space-y-2">
@@ -354,7 +355,7 @@ export function KnowledgeView({
                   }))
                 }
               >
-                <SelectTrigger className="h-12 w-full rounded-2xl">
+                <SelectTrigger className="h-10 w-full rounded-lg">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -372,7 +373,7 @@ export function KnowledgeView({
                 id="knowledge-tags"
                 value={tagInput}
                 onChange={(event) => setTagInput(event.target.value)}
-                className="h-12 rounded-2xl"
+                className="h-10 rounded-lg"
                 placeholder="nf-e, sefaz, duplicidade"
               />
             </div>
@@ -385,7 +386,7 @@ export function KnowledgeView({
                 onChange={(event) =>
                   setForm((current) => ({ ...current, excerpt: event.target.value }))
                 }
-                className="rounded-2xl"
+                className="rounded-lg"
               />
             </div>
             <div className="space-y-2 md:col-span-2">
@@ -397,7 +398,7 @@ export function KnowledgeView({
                 onChange={(event) =>
                   setForm((current) => ({ ...current, content: event.target.value }))
                 }
-                className="rounded-2xl"
+                className="rounded-lg"
               />
             </div>
           </div>
