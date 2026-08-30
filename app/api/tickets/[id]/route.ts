@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/session";
 import { hasPermission } from "@/lib/permissions";
+import { createAuditLogSafely } from "@/services/audit-service";
 import { updateTicketStatus } from "@/services/ticket-service";
 
 const updateSchema = z.object({
@@ -34,7 +35,28 @@ export async function PATCH(
     const body = await request.json();
     const data = updateSchema.parse(body);
     const { id } = await params;
-    const ticket = await updateTicketStatus(id, data.status, user.name, data.note);
+    const { ticket, previousStatus } = await updateTicketStatus(
+      id,
+      data.status,
+      user.name,
+      data.note,
+    );
+    if (previousStatus !== ticket.status) {
+      await createAuditLogSafely({
+        user,
+        action: "STATUS_CHANGE",
+        entityType: "TICKET",
+        entityId: ticket.id,
+        description: "Status do chamado atualizado.",
+        metadata: {
+          protocol: ticket.protocol,
+          previousStatus,
+          newStatus: ticket.status,
+          category: ticket.category,
+          priority: ticket.priority,
+        },
+      });
+    }
     return NextResponse.json({ ticket });
   } catch (error) {
     return NextResponse.json(

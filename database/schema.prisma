@@ -63,6 +63,20 @@ enum MessageFeedback {
   NOT_HELPFUL
 }
 
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  FEEDBACK
+}
+
+enum AuditEntityType {
+  KNOWLEDGE_DOCUMENT
+  TICKET
+  CHAT_MESSAGE
+}
+
 model User {
   id                  String             @id @default(cuid())
   name                String
@@ -154,4 +168,20 @@ model ChatMessage {
   createdAt             DateTime         @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+model AuditLog {
+  id          String          @id @default(cuid())
+  userId      String?
+  userName    String?
+  action      AuditAction
+  entityType  AuditEntityType
+  entityId    String?
+  description String
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
 }

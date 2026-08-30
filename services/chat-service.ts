@@ -192,7 +192,10 @@ export async function updateChatMessageFeedback(
       data: { feedback: feedback ?? null },
     });
 
-    return serializeMessage(updatedMessage);
+    return {
+      message: serializeMessage(updatedMessage),
+      previousFeedback: message.feedback,
+    };
   }
 
   const message = demoStore.messages.find(
@@ -209,8 +212,9 @@ export async function updateChatMessageFeedback(
     return null;
   }
 
+  const previousFeedback = message.feedback;
   message.feedback = feedback;
-  return message;
+  return { message, previousFeedback };
 }
 
 export async function sendChatMessage(

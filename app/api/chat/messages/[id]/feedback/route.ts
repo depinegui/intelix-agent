@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/session";
 import { hasPermission } from "@/lib/permissions";
+import { createAuditLogSafely } from "@/services/audit-service";
 import { updateChatMessageFeedback } from "@/services/chat-service";
 
 const feedbackSchema = z.object({
@@ -29,20 +30,36 @@ export async function PATCH(
   try {
     const data = feedbackSchema.parse(await request.json());
     const { id } = await context.params;
-    const message = await updateChatMessageFeedback(
+    const result = await updateChatMessageFeedback(
       user.id,
       id,
       data.feedback ?? undefined,
     );
 
-    if (!message) {
+    if (!result) {
       return NextResponse.json(
         { message: "Mensagem nao encontrada." },
         { status: 404 },
       );
     }
 
-    return NextResponse.json({ message });
+    if (result.previousFeedback !== result.message.feedback) {
+      await createAuditLogSafely({
+        user,
+        action: "FEEDBACK",
+        entityType: "CHAT_MESSAGE",
+        entityId: result.message.id,
+        description: "Feedback da resposta do chat atualizado.",
+        metadata: {
+          previousFeedback: result.previousFeedback ?? null,
+          newFeedback: result.message.feedback ?? null,
+          conversationId: result.message.conversationId,
+          confidence: result.message.confidence ?? null,
+        },
+      });
+    }
+
+    return NextResponse.json({ message: result.message });
   } catch (error) {
     return NextResponse.json(
       {

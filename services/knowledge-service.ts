@@ -153,10 +153,16 @@ export async function updateKnowledgeDocument(id: string, input: KnowledgeInput)
 
 export async function deleteKnowledgeDocument(id: string) {
   if (prisma) {
-    await prisma.knowledgeDocument.delete({
+    const document = await prisma.knowledgeDocument.delete({
       where: { id },
     });
-    return;
+
+    return {
+      id: document.id,
+      title: document.title,
+      category: document.category,
+      slug: document.slug,
+    };
   }
 
   const index = demoStore.knowledge.findIndex((document) => document.id === id);
@@ -165,7 +171,13 @@ export async function deleteKnowledgeDocument(id: string) {
     throw new Error("Documento nao encontrado.");
   }
 
-  demoStore.knowledge.splice(index, 1);
+  const [document] = demoStore.knowledge.splice(index, 1);
+  return {
+    id: document.id,
+    title: document.title,
+    category: document.category,
+    slug: document.slug,
+  };
 }
 
 export async function searchKnowledgeDocuments(query: string, limit = 3) {

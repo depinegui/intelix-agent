@@ -175,26 +175,40 @@ export async function updateTicketStatus(
   note?: string,
 ) {
   if (prisma) {
-    const ticket = await prisma.ticket.update({
-      where: { id },
-      data: {
-        status,
-        histories: {
-          create: {
-            actorName,
-            action: `Status atualizado para ${status}.`,
-            note,
+    return prisma.$transaction(async (transaction) => {
+      const previousTicket = await transaction.ticket.findUnique({
+        where: { id },
+        select: { status: true },
+      });
+
+      if (!previousTicket) {
+        throw new Error("Chamado nao encontrado.");
+      }
+
+      const ticket = await transaction.ticket.update({
+        where: { id },
+        data: {
+          status,
+          histories: {
+            create: {
+              actorName,
+              action: `Status atualizado para ${status}.`,
+              note,
+            },
           },
         },
-      },
-      include: {
-        histories: {
-          orderBy: { createdAt: "desc" },
+        include: {
+          histories: {
+            orderBy: { createdAt: "desc" },
+          },
         },
-      },
-    });
+      });
 
-    return serializeTicket(ticket);
+      return {
+        ticket: serializeTicket(ticket),
+        previousStatus: previousTicket.status,
+      };
+    });
   }
 
   const ticket = demoStore.tickets.find((item) => item.id === id);
@@ -203,6 +217,7 @@ export async function updateTicketStatus(
     throw new Error("Chamado nao encontrado.");
   }
 
+  const previousStatus = ticket.status;
   ticket.status = status;
   ticket.updatedAt = new Date().toISOString();
   ticket.histories.unshift({
@@ -214,7 +229,10 @@ export async function updateTicketStatus(
     createdAt: ticket.updatedAt,
   });
 
-  return ticket;
+  return {
+    ticket,
+    previousStatus,
+  };
 }
 
 export async function searchRelatedTickets(query: string, limit = 2) {
