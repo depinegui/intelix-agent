@@ -1,7 +1,15 @@
 "use client";
 
 import { startTransition, useState } from "react";
-import { Bot, LoaderCircle, Send, Sparkles, UserRound } from "lucide-react";
+import {
+  Bot,
+  History,
+  LoaderCircle,
+  Plus,
+  Send,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import { apiRequest } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -13,28 +21,72 @@ import type {
   ChatMessageRecord,
   ChatReply,
 } from "@/types";
-import { formatConversationTime } from "@/utils/format";
+import { formatConversationTime, formatDateTime } from "@/utils/format";
 
 interface ChatViewProps {
   initialConversation: ChatConversationRecord | null;
   initialMessages: ChatMessageRecord[];
+  initialConversations: ChatConversationRecord[];
 }
 
 export function ChatView({
   initialConversation,
   initialMessages,
+  initialConversations,
 }: ChatViewProps) {
   const [conversationId, setConversationId] = useState(
     initialConversation?.id ?? "",
   );
   const [messages, setMessages] = useState(initialMessages);
+  const [conversations, setConversations] = useState(initialConversations);
   const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
+  const [openingConversationId, setOpeningConversationId] = useState("");
 
   const scrollRef = useAutoScroll<HTMLDivElement>(messages.length);
   const lastAssistantMessage = [...messages]
     .reverse()
     .find((message) => message.role === "ASSISTANT");
+
+  function updateConversation(conversation: ChatConversationRecord) {
+    setConversations((current) =>
+      [conversation, ...current.filter((item) => item.id !== conversation.id)].sort(
+        (left, right) => right.updatedAt.localeCompare(left.updatedAt),
+      ),
+    );
+  }
+
+  function startNewConversation() {
+    setConversationId("");
+    setMessages([]);
+    setPrompt("");
+  }
+
+  async function openConversation(id: string) {
+    if (id === conversationId || openingConversationId) {
+      return;
+    }
+
+    setOpeningConversationId(id);
+
+    try {
+      const conversationState = await apiRequest<{
+        conversation: ChatConversationRecord;
+        messages: ChatMessageRecord[];
+      }>(`/api/chat/conversations/${id}`);
+      setConversationId(conversationState.conversation.id);
+      setMessages(conversationState.messages);
+      setPrompt("");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel abrir a conversa.",
+      );
+    } finally {
+      setOpeningConversationId("");
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,6 +118,7 @@ export function ChatView({
       })
         .then((payload) => {
           setConversationId(payload.conversationId);
+          updateConversation(payload.conversation);
           setMessages((current) => [
             ...current.filter((item) => item.id !== optimisticMessage.id),
             payload.userMessage ?? optimisticMessage,
@@ -141,6 +194,52 @@ export function ChatView({
         </section>
 
         <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 px-6 pt-6">
+            <div className="flex items-center gap-3">
+              <History className="size-5 text-primary" />
+              <CardTitle className="text-xl font-semibold">Conversas</CardTitle>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-2xl"
+              onClick={startNewConversation}
+              disabled={sending || Boolean(openingConversationId)}
+            >
+              <Plus className="size-4" />
+              Nova conversa
+            </Button>
+          </CardHeader>
+          <CardContent className="flex gap-3 overflow-x-auto px-6 pb-6">
+            {conversations.length ? (
+              conversations.map((conversation) => (
+                <Button
+                  key={conversation.id}
+                  type="button"
+                  variant={conversation.id === conversationId ? "secondary" : "outline"}
+                  className="h-auto min-w-52 shrink-0 items-start rounded-2xl px-4 py-3 text-left"
+                  onClick={() => openConversation(conversation.id)}
+                  disabled={sending || Boolean(openingConversationId)}
+                >
+                  <span className="grid gap-1">
+                    <span className="max-w-44 truncate font-semibold">
+                      {conversation.title}
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {formatDateTime(conversation.updatedAt)}
+                    </span>
+                  </span>
+                </Button>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Suas conversas aparecerao aqui depois da primeira mensagem.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[30px] border-none shadow-[0_18px_48px_rgba(15,24,40,0.08)]">
           <CardContent className="flex h-[640px] flex-col px-0 pb-0">
             <div
               ref={scrollRef}
@@ -212,7 +311,7 @@ export function ChatView({
                     type="submit"
                     size="lg"
                     className="h-12 rounded-2xl px-6"
-                    disabled={sending}
+                    disabled={sending || Boolean(openingConversationId)}
                   >
                     {sending ? (
                       <>

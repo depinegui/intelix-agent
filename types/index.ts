@@ -189,6 +189,7 @@ export interface KnowledgeInput {
 
 export interface ChatReply {
   conversationId: string;
+  conversation: ChatConversationRecord;
   userMessage?: ChatMessageRecord;
   message: ChatMessageRecord;
 }

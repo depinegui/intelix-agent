@@ -62,6 +62,65 @@ function serializeConversation(record: {
   };
 }
 
+function getConversationState(record: {
+  id: string;
+  title: string;
+  userId: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  messages: Array<Parameters<typeof serializeMessage>[0]>;
+}) {
+  return {
+    conversation: serializeConversation(record),
+    messages: record.messages.map(serializeMessage),
+  };
+}
+
+export async function listChatConversations(userId: string) {
+  if (prisma) {
+    const conversations = await prisma.chatConversation.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return conversations.map(serializeConversation);
+  }
+
+  return demoStore.conversations
+    .filter((conversation) => conversation.userId === userId)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+export async function getConversationForUser(userId: string, conversationId: string) {
+  if (prisma) {
+    const conversation = await prisma.chatConversation.findFirst({
+      where: { id: conversationId, userId },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    return conversation ? getConversationState(conversation) : null;
+  }
+
+  const conversation = demoStore.conversations.find(
+    (item) => item.id === conversationId && item.userId === userId,
+  );
+
+  if (!conversation) {
+    return null;
+  }
+
+  return {
+    conversation,
+    messages: demoStore.messages
+      .filter((message) => message.conversationId === conversation.id)
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt)),
+  };
+}
+
 export async function getLatestConversation(userId: string) {
   if (prisma) {
     const conversation = await prisma.chatConversation.findFirst({
@@ -78,13 +137,12 @@ export async function getLatestConversation(userId: string) {
       return null;
     }
 
-    return {
-      conversation: serializeConversation(conversation),
-      messages: conversation.messages.map(serializeMessage),
-    };
+    return getConversationState(conversation);
   }
 
-  const conversation = demoStore.conversations.find((item) => item.userId === userId);
+  const conversation = demoStore.conversations
+    .filter((item) => item.userId === userId)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
 
   if (!conversation) {
     return null;
@@ -134,17 +192,20 @@ export async function sendChatMessage(
   const agent = getSupportAgent();
 
   if (prisma) {
-    const activeConversation =
-      (conversationId &&
-        (await prisma.chatConversation.findUnique({
-          where: { id: conversationId },
-        }))) ||
-      (await prisma.chatConversation.create({
-        data: {
-          title: createConversationTitle(sanitizedPrompt),
-          userId: user.id,
-        },
-      }));
+    const activeConversation = conversationId
+      ? await prisma.chatConversation.findFirst({
+          where: { id: conversationId, userId: user.id },
+        })
+      : await prisma.chatConversation.create({
+          data: {
+            title: createConversationTitle(sanitizedPrompt),
+            userId: user.id,
+          },
+        });
+
+    if (!activeConversation) {
+      throw new Error("Conversa nao encontrada.");
+    }
 
     const userMessage = await prisma.chatMessage.create({
       data: {
@@ -152,6 +213,11 @@ export async function sendChatMessage(
         role: "USER",
         content: sanitizedPrompt,
       },
+    });
+
+    await prisma.chatConversation.update({
+      where: { id: activeConversation.id },
+      data: { updatedAt: new Date() },
     });
 
     const historyRecords = await prisma.chatMessage.findMany({
@@ -174,18 +240,28 @@ export async function sendChatMessage(
         citations: reply.citations as unknown as Prisma.InputJsonValue,
       },
     });
+    const updatedConversation = await prisma.chatConversation.update({
+      where: { id: activeConversation.id },
+      data: { updatedAt: new Date() },
+    });
 
     return {
       conversationId: activeConversation.id,
+      conversation: serializeConversation(updatedConversation),
       userMessage: serializeMessage(userMessage),
       message: serializeMessage(assistantMessage),
     };
   }
 
-  let activeConversation =
-    (conversationId &&
-      demoStore.conversations.find((item) => item.id === conversationId)) ||
-    null;
+  let activeConversation = conversationId
+    ? demoStore.conversations.find(
+        (item) => item.id === conversationId && item.userId === user.id,
+      ) ?? null
+    : null;
+
+  if (conversationId && !activeConversation) {
+    throw new Error("Conversa nao encontrada.");
+  }
 
   if (!activeConversation) {
     activeConversation = {
@@ -232,6 +308,7 @@ export async function sendChatMessage(
 
   return {
     conversationId: activeConversation.id,
+    conversation: activeConversation,
     userMessage,
     message: assistantMessage,
   };
