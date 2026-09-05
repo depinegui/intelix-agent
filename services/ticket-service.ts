@@ -91,13 +91,48 @@ export async function listTickets(limit?: number) {
 
 export function getProtocolPreview() {
   const today = new Date();
-  return `INT-${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-####`;
+
+  return `INT-${today.getFullYear()}-${String(
+    today.getMonth() + 1,
+  ).padStart(2, "0")}-####`;
 }
 
-export async function createTicket(input: TicketInput, user: SessionUser) {
+export async function createTicket(
+  input: TicketInput,
+  user: SessionUser,
+) {
   const data = ticketSchema.parse(input);
   const protocol = data.protocol?.trim() || getNextProtocol();
   const now = new Date();
+
+  /*
+   * Quando o chamado vem do fallback do Intelix,
+   * o chat adiciona esta identificação na descrição.
+   */
+  const isIntelixEscalation = data.description.includes(
+    "Chamado encaminhado pelo Intelix Agent.",
+  );
+
+  /*
+   * Chamados normais continuam indo para triagem.
+   * Chamados que a IA não conseguiu resolver vão
+   * diretamente para atendimento humano.
+   */
+  const initialStatus: TicketStatus = isIntelixEscalation
+    ? "ESCALADO"
+    : "EM_TRIAGEM";
+
+  const aiSummary = isIntelixEscalation
+    ? "Chamado escalado pelo Intelix Agent por falta de contexto confiavel na base de conhecimento."
+    : "Chamado recebido e enviado para triagem automatica com contexto de base de conhecimento.";
+
+  const initialHistoryAction = isIntelixEscalation
+    ? "Chamado escalado pelo Intelix Agent para atendimento humano."
+    : "Chamado aberto e encaminhado para triagem por IA.";
+
+  const initialHistoryNote = isIntelixEscalation
+    ? "O agente nao encontrou contexto confiavel suficiente para responder com seguranca."
+    : "O agente vai consultar a base de conhecimento e o historico do cliente.";
 
   if (prisma) {
     const ticket = await prisma.ticket.create({
@@ -107,17 +142,16 @@ export async function createTicket(input: TicketInput, user: SessionUser) {
         description: data.description,
         category: data.category,
         priority: data.priority,
-        status: "EM_TRIAGEM",
+        status: initialStatus,
         requesterId: user.id,
         requesterName: user.name,
-        aiSummary:
-          "Chamado recebido e enviado para triagem automatica com contexto de base de conhecimento.",
+        aiSummary,
         histories: {
           create: [
             {
               actorName: "Intelix Agent",
-              action: "Chamado aberto e encaminhado para triagem por IA.",
-              note: "O agente vai consultar a base de conhecimento e o historico do cliente.",
+              action: initialHistoryAction,
+              note: initialHistoryNote,
             },
           ],
         },
@@ -138,12 +172,11 @@ export async function createTicket(input: TicketInput, user: SessionUser) {
     title: data.title,
     description: data.description,
     category: data.category,
-    status: "EM_TRIAGEM",
+    status: initialStatus,
     priority: data.priority,
     requesterId: user.id,
     requesterName: user.name,
-    aiSummary:
-      "Chamado recebido e encaminhado para triagem automatica com contexto RAG.",
+    aiSummary,
     resolutionNotes: "",
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
@@ -152,8 +185,8 @@ export async function createTicket(input: TicketInput, user: SessionUser) {
         id: `history_${crypto.randomUUID().slice(0, 8)}`,
         ticketId: "",
         actorName: "Intelix Agent",
-        action: "Chamado aberto e encaminhado para triagem por IA.",
-        note: "Sugestoes iniciais preparadas para o analista.",
+        action: initialHistoryAction,
+        note: initialHistoryNote,
         createdAt: now.toISOString(),
       },
     ],
@@ -165,6 +198,7 @@ export async function createTicket(input: TicketInput, user: SessionUser) {
   }));
 
   demoStore.tickets.unshift(createdTicket);
+
   return createdTicket;
 }
 
@@ -218,8 +252,10 @@ export async function updateTicketStatus(
   }
 
   const previousStatus = ticket.status;
+
   ticket.status = status;
   ticket.updatedAt = new Date().toISOString();
+
   ticket.histories.unshift({
     id: `history_${crypto.randomUUID().slice(0, 8)}`,
     ticketId: ticket.id,
