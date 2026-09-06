@@ -6,7 +6,8 @@ export type TicketCategory =
   | "ESTOQUE"
   | "INVENTARIO"
   | "PCP"
-  | "FINANCEIRO";
+  | "FINANCEIRO"
+  | "SUPORTE_GERAL";
 export type TicketStatus =
   | "ABERTO"
   | "EM_TRIAGEM"
@@ -143,6 +144,10 @@ export interface ChatMessageRecord {
   retrievedSourcesCount?: number;
   withoutContext?: boolean;
   feedback?: MessageFeedback;
+  feedbackReason?: string;
+  feedbackComment?: string;
+  feedbackAt?: string;
+  escalatedTicketId?: string;
   createdAt: string;
 }
 

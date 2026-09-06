@@ -4,6 +4,7 @@ import { demoStore } from "@/database/demo-store";
 import { redactSensitiveData } from "@/lib/redact-sensitive-data";
 import { prisma } from "@/lib/prisma";
 import { searchKnowledgeDocuments } from "@/services/knowledge-service";
+import { createTicket, serializeTicket } from "@/services/ticket-service";
 import {
   hasIndexedKnowledgeBase,
   searchKnowledgeBase,
@@ -27,6 +28,10 @@ function serializeMessage(record: {
   retrievedSourcesCount: number | null;
   withoutContext: boolean | null;
   feedback: MessageFeedback | null;
+  feedbackReason?: string | null;
+  feedbackComment?: string | null;
+  feedbackAt?: Date | string | null;
+  escalatedTicketId?: string | null;
   createdAt: Date | string;
 }): ChatMessageRecord {
   return {
@@ -42,6 +47,14 @@ function serializeMessage(record: {
     retrievedSourcesCount: record.retrievedSourcesCount ?? undefined,
     withoutContext: record.withoutContext ?? undefined,
     feedback: record.feedback ?? undefined,
+    feedbackReason: record.feedbackReason ?? undefined,
+    feedbackComment: record.feedbackComment ?? undefined,
+    feedbackAt: record.feedbackAt
+      ? record.feedbackAt instanceof Date
+        ? record.feedbackAt.toISOString()
+        : record.feedbackAt
+      : undefined,
+    escalatedTicketId: record.escalatedTicketId ?? undefined,
     createdAt:
       record.createdAt instanceof Date
         ? record.createdAt.toISOString()
@@ -173,6 +186,8 @@ export async function updateChatMessageFeedback(
   userId: string,
   messageId: string,
   feedback: MessageFeedback | undefined,
+  reason?: string,
+  comment?: string,
 ) {
   if (prisma) {
     const message = await prisma.chatMessage.findFirst({
@@ -189,12 +204,18 @@ export async function updateChatMessageFeedback(
 
     const updatedMessage = await prisma.chatMessage.update({
       where: { id: message.id },
-      data: { feedback: feedback ?? null },
+      data: {
+        feedback: feedback ?? null,
+        feedbackReason: feedback === "NOT_HELPFUL" ? reason ?? null : null,
+        feedbackComment: feedback === "NOT_HELPFUL" ? comment ?? null : null,
+        feedbackAt: feedback ? new Date() : null,
+      },
     });
 
     return {
       message: serializeMessage(updatedMessage),
       previousFeedback: message.feedback,
+      previousFeedbackReason: message.feedbackReason,
     };
   }
 
@@ -214,7 +235,10 @@ export async function updateChatMessageFeedback(
 
   const previousFeedback = message.feedback;
   message.feedback = feedback;
-  return { message, previousFeedback };
+  message.feedbackReason = feedback === "NOT_HELPFUL" ? reason : undefined;
+  message.feedbackComment = feedback === "NOT_HELPFUL" ? comment : undefined;
+  message.feedbackAt = feedback ? new Date().toISOString() : undefined;
+  return { message, previousFeedback, previousFeedbackReason: undefined };
 }
 
 export async function sendChatMessage(
@@ -391,4 +415,86 @@ export async function sendChatMessage(
     userMessage,
     message: assistantMessage,
   };
+}
+
+export async function escalateChatMessageToTicket(
+  user: SessionUser,
+  messageId: string,
+) {
+  if (!prisma) {
+    throw new Error("O encaminhamento persistente requer um banco de dados configurado.");
+  }
+
+  const message = await prisma.chatMessage.findFirst({
+    where: { id: messageId, role: "ASSISTANT", conversation: { userId: user.id } },
+    include: {
+      conversation: {
+        include: { messages: { orderBy: { createdAt: "desc" } } },
+      },
+    },
+  });
+  if (!message) throw new Error("Mensagem nao encontrada.");
+
+  if (message.escalatedTicketId) {
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: message.escalatedTicketId },
+      include: { histories: { orderBy: { createdAt: "desc" } } },
+    });
+    if (ticket) return { ticket: serializeTicket(ticket), created: false };
+  }
+
+  const existingEscalation = await prisma.ticket.findUnique({
+    where: { chatEscalationMessageId: message.id },
+    include: { histories: { orderBy: { createdAt: "desc" } } },
+  });
+  if (existingEscalation) {
+    await prisma.chatMessage.update({
+      where: { id: message.id },
+      data: { escalatedTicketId: existingEscalation.id },
+    });
+    return { ticket: serializeTicket(existingEscalation), created: false };
+  }
+
+  const question = message.conversation.messages.find((item) =>
+    item.role === "USER" && item.createdAt <= message.createdAt,
+  );
+  if (!question) throw new Error("Nao foi possivel identificar a pergunta original.");
+
+  let ticket;
+  try {
+    ticket = await createTicket({
+      title: `Atendimento Intelix: ${question.content.slice(0, 80)}`,
+      description: [
+        "Chamado encaminhado pelo Intelix Agent.",
+        "",
+        "Pergunta original:",
+        question.content,
+        "",
+        "Motivo do encaminhamento:",
+        "O agente nao encontrou contexto confiavel suficiente na base de conhecimento para responder com seguranca.",
+      ].join("\n"),
+      category: "SUPORTE_GERAL",
+      priority: "MEDIA",
+    }, user, { chatEscalationMessageId: message.id });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+      throw error;
+    }
+    const concurrentTicket = await prisma.ticket.findUnique({
+      where: { chatEscalationMessageId: message.id },
+      include: { histories: { orderBy: { createdAt: "desc" } } },
+    });
+    if (!concurrentTicket) throw error;
+    await prisma.chatMessage.update({
+      where: { id: message.id },
+      data: { escalatedTicketId: concurrentTicket.id },
+    });
+    return { ticket: serializeTicket(concurrentTicket), created: false };
+  }
+
+  await prisma.chatMessage.update({
+    where: { id: message.id },
+    data: { escalatedTicketId: ticket.id },
+  });
+  return { ticket, created: true };
 }

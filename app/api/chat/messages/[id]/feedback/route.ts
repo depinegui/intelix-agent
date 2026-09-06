@@ -7,6 +7,19 @@ import { updateChatMessageFeedback } from "@/services/chat-service";
 
 const feedbackSchema = z.object({
   feedback: z.enum(["HELPFUL", "NOT_HELPFUL"]).nullable(),
+  reason: z.enum([
+    "INCORRECT",
+    "INCOMPLETE",
+    "NOT_ANSWERED",
+    "INADEQUATE_SOURCE",
+    "CONFUSING",
+    "OTHER",
+  ]).optional(),
+  comment: z.string().trim().max(500).optional(),
+}).superRefine((data, context) => {
+  if (data.feedback === "NOT_HELPFUL" && !data.reason) {
+    context.addIssue({ code: "custom", message: "Selecione um motivo para o feedback." });
+  }
 });
 
 interface FeedbackRouteContext {
@@ -34,6 +47,8 @@ export async function PATCH(
       user.id,
       id,
       data.feedback ?? undefined,
+      data.reason,
+      data.comment,
     );
 
     if (!result) {
@@ -43,7 +58,10 @@ export async function PATCH(
       );
     }
 
-    if (result.previousFeedback !== result.message.feedback) {
+    if (
+      result.previousFeedback !== result.message.feedback ||
+      result.previousFeedbackReason !== result.message.feedbackReason
+    ) {
       await createAuditLogSafely({
         user,
         action: "FEEDBACK",
@@ -53,6 +71,7 @@ export async function PATCH(
         metadata: {
           previousFeedback: result.previousFeedback ?? null,
           newFeedback: result.message.feedback ?? null,
+          feedbackReason: result.message.feedbackReason ?? null,
           conversationId: result.message.conversationId,
           confidence: result.message.confidence ?? null,
         },

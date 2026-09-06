@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { demoStore, getNextProtocol } from "@/database/demo-store";
 import { prisma } from "@/lib/prisma";
 import type {
@@ -18,12 +19,13 @@ const ticketSchema = z.object({
     "INVENTARIO",
     "PCP",
     "FINANCEIRO",
+    "SUPORTE_GERAL",
   ]),
   priority: z.enum(["BAIXA", "MEDIA", "ALTA", "CRITICA"]),
   protocol: z.string().optional(),
 });
 
-function serializeTicket(record: {
+export function serializeTicket(record: {
   id: string;
   protocol: string;
   title: string;
@@ -97,12 +99,30 @@ export function getProtocolPreview() {
   ).padStart(2, "0")}-####`;
 }
 
+async function getNextDatabaseProtocol() {
+  if (!prisma) return getNextProtocol();
+
+  const today = new Date();
+  const prefix = `INT-${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-`;
+  const tickets = await prisma.ticket.findMany({
+    where: { protocol: { startsWith: prefix } },
+    select: { protocol: true },
+  });
+  const nextSequence = tickets.reduce((highest, ticket) => {
+    const sequence = Number(ticket.protocol.slice(prefix.length));
+    return Number.isInteger(sequence) ? Math.max(highest, sequence) : highest;
+  }, 0) + 1;
+
+  return `${prefix}${String(nextSequence).padStart(4, "0")}`;
+}
+
 export async function createTicket(
   input: TicketInput,
   user: SessionUser,
+  options?: { chatEscalationMessageId?: string },
 ) {
   const data = ticketSchema.parse(input);
-  const protocol = data.protocol?.trim() || getNextProtocol();
+  const requestedProtocol = data.protocol?.trim();
   const now = new Date();
 
   /*
@@ -135,37 +155,53 @@ export async function createTicket(
     : "O agente vai consultar a base de conhecimento e o historico do cliente.";
 
   if (prisma) {
-    const ticket = await prisma.ticket.create({
-      data: {
-        protocol,
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        priority: data.priority,
-        status: initialStatus,
-        requesterId: user.id,
-        requesterName: user.name,
-        aiSummary,
-        histories: {
-          create: [
-            {
-              actorName: "Intelix Agent",
-              action: initialHistoryAction,
-              note: initialHistoryNote,
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const protocol = requestedProtocol ?? await getNextDatabaseProtocol();
+      try {
+        const ticket = await prisma.ticket.create({
+          data: {
+            protocol,
+            title: data.title,
+            description: data.description,
+            category: data.category,
+            priority: data.priority,
+            status: initialStatus,
+            requesterId: user.id,
+            requesterName: user.name,
+            chatEscalationMessageId: options?.chatEscalationMessageId,
+            aiSummary,
+            histories: {
+              create: [
+                {
+                  actorName: "Intelix Agent",
+                  action: initialHistoryAction,
+                  note: initialHistoryNote,
+                },
+              ],
             },
-          ],
-        },
-      },
-      include: {
-        histories: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
-    });
+          },
+          include: {
+            histories: {
+              orderBy: { createdAt: "desc" },
+            },
+          },
+        });
 
-    return serializeTicket(ticket);
+        return serializeTicket(ticket);
+      } catch (error) {
+        const isProtocolCollision =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002" &&
+          Array.isArray(error.meta?.target) &&
+          error.meta.target.includes("protocol");
+        if (requestedProtocol || !isProtocolCollision || attempt === 2) {
+          throw error;
+        }
+      }
+    }
   }
 
+  const protocol = requestedProtocol || getNextProtocol();
   const createdTicket: TicketRecord = {
     id: `ticket_${crypto.randomUUID().slice(0, 8)}`,
     protocol,

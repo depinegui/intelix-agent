@@ -25,6 +25,7 @@ enum TicketCategory {
   INVENTARIO
   PCP
   FINANCEIRO
+  SUPORTE_GERAL
 }
 
 enum TicketStatus {
@@ -123,6 +124,7 @@ model Ticket {
   requesterName   String
   aiSummary       String?
   resolutionNotes String?
+  chatEscalationMessageId String? @unique
   requester       User            @relation("RequesterTickets", fields: [requesterId], references: [id], onDelete: Cascade)
   histories       TicketHistory[]
   createdAt       DateTime        @default(now())
@@ -213,6 +215,10 @@ model ChatMessage {
   retrievedSourcesCount Int?
   withoutContext        Boolean?
   feedback              MessageFeedback?
+  feedbackReason        String?
+  feedbackComment       String?
+  feedbackAt            DateTime?
+  escalatedTicketId     String?           @unique
   conversation          ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   createdAt             DateTime         @default(now())
 

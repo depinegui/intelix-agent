@@ -31,6 +31,7 @@ export const categoryLabels: Record<TicketCategory | KnowledgeCategory, string> 
     INVENTARIO: "Inventario",
     PCP: "PCP",
     FINANCEIRO: "Financeiro",
+    SUPORTE_GERAL: "Suporte geral",
     PROCEDIMENTOS: "Procedimentos Internos",
   };
 

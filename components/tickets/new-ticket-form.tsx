@@ -24,6 +24,7 @@ const categories = [
   { value: "INVENTARIO", label: "Inventario" },
   { value: "PCP", label: "PCP" },
   { value: "FINANCEIRO", label: "Financeiro" },
+  { value: "SUPORTE_GERAL", label: "Suporte geral" },
 ];
 
 const priorities = [

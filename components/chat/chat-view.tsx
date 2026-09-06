@@ -17,16 +17,57 @@ import { toast } from "sonner";
 import { apiRequest } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownMessage } from "@/components/chat/markdown-message";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import type {
   ChatConversationRecord,
+  ChatCitation,
   MessageFeedback,
   ChatMessageRecord,
   ChatReply,
   TicketRecord,
 } from "@/types";
-import { formatConversationTime, formatDateTime } from "@/utils/format";
+import {
+  categoryLabels,
+  formatConversationTime,
+  formatDateTime,
+} from "@/utils/format";
+
+const feedbackReasons = [
+  { value: "INCORRECT", label: "A resposta esta incorreta" },
+  { value: "INCOMPLETE", label: "A resposta esta incompleta" },
+  { value: "NOT_ANSWERED", label: "A pergunta nao foi respondida" },
+  { value: "INADEQUATE_SOURCE", label: "As fontes nao sao adequadas" },
+  { value: "CONFUSING", label: "A resposta esta confusa" },
+  { value: "OTHER", label: "Outro motivo" },
+] as const;
+
+type FeedbackReason = (typeof feedbackReasons)[number]["value"];
+
+function citationOrigin(citation: ChatCitation) {
+  if (citation.kind === "ticket") return "Historico de atendimento";
+  if (citation.source?.startsWith("legacy:")) return "Base canonica";
+  if (citation.source?.startsWith("upload:")) return "Arquivo enviado";
+  if (citation.source?.startsWith("manual:")) return "Documento cadastrado";
+  return "Base de conhecimento";
+}
 
 interface ChatViewProps {
   initialConversation: ChatConversationRecord | null;
@@ -49,6 +90,9 @@ export function ChatView({
   const [openingConversationId, setOpeningConversationId] = useState("");
   const [updatingFeedbackId, setUpdatingFeedbackId] = useState("");
   const [creatingTicketMessageId, setCreatingTicketMessageId] = useState("");
+  const [feedbackDialogMessageId, setFeedbackDialogMessageId] = useState("");
+  const [feedbackReason, setFeedbackReason] = useState<FeedbackReason>("INCORRECT");
+  const [feedbackComment, setFeedbackComment] = useState("");
   const [createdTicketsByMessage, setCreatedTicketsByMessage] = useState<
     Record<string, string>
   >({});
@@ -104,6 +148,7 @@ export function ChatView({
     messageId: string,
     currentFeedback: MessageFeedback | undefined,
     nextFeedback: MessageFeedback,
+    detail?: { reason: FeedbackReason; comment: string },
   ) {
     if (updatingFeedbackId) {
       return;
@@ -121,6 +166,9 @@ export function ChatView({
           method: "PATCH",
           body: JSON.stringify({
             feedback: feedback ?? null,
+            ...(feedback === "NOT_HELPFUL" && detail
+              ? { reason: detail.reason, comment: detail.comment || undefined }
+              : {}),
           }),
         },
       );
@@ -146,45 +194,13 @@ export function ChatView({
       return;
     }
 
-    const messageIndex = messages.findIndex((item) => item.id === message.id);
-
-    const previousUserMessage =
-      messageIndex > 0
-        ? [...messages]
-            .slice(0, messageIndex)
-            .reverse()
-            .find((item) => item.role === "USER")
-        : undefined;
-
-    if (!previousUserMessage) {
-      toast.error("Nao foi possivel identificar a pergunta original.");
-      return;
-    }
-
     setCreatingTicketMessageId(message.id);
 
     try {
-      const payload = await apiRequest<{ ticket: TicketRecord }>(
-        "/api/tickets",
+      const payload = await apiRequest<{ ticket: TicketRecord; created: boolean }>(
+        `/api/chat/messages/${message.id}/escalate`,
         {
           method: "POST",
-          body: JSON.stringify({
-            title: `Atendimento Intelix: ${previousUserMessage.content.slice(
-              0,
-              80,
-            )}`,
-            description: [
-              "Chamado encaminhado pelo Intelix Agent.",
-              "",
-              "Pergunta original:",
-              previousUserMessage.content,
-              "",
-              "Motivo do encaminhamento:",
-              "O agente nao encontrou contexto confiavel suficiente na base de conhecimento para responder com seguranca.",
-            ].join("\n"),
-            category: "FINANCEIRO",
-            priority: "MEDIA",
-          }),
         },
       );
 
@@ -193,9 +209,9 @@ export function ChatView({
         [message.id]: payload.ticket.protocol,
       }));
 
-      toast.success(
-        `Chamado ${payload.ticket.protocol} criado para atendimento humano.`,
-      );
+      toast.success(payload.created
+        ? `Chamado ${payload.ticket.protocol} criado para atendimento humano.`
+        : `Este atendimento ja possui o chamado ${payload.ticket.protocol}.`);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -265,6 +281,18 @@ export function ChatView({
 
   const sourceCount = lastAssistantMessage?.citations?.length ?? 0;
   const confidence = lastAssistantMessage?.confidence ?? 0;
+
+  async function submitNotHelpfulFeedback() {
+    if (!feedbackDialogMessageId) return;
+    const message = messages.find((item) => item.id === feedbackDialogMessageId);
+    if (!message) return;
+    await updateFeedback(message.id, message.feedback, "NOT_HELPFUL", {
+      reason: feedbackReason,
+      comment: feedbackComment.trim(),
+    });
+    setFeedbackDialogMessageId("");
+    setFeedbackComment("");
+  }
 
   return (
     <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -420,9 +448,13 @@ export function ChatView({
                         {assistant ? "Intelix Agent" : "Voce"}
                       </div>
 
-                      <p className="whitespace-pre-wrap text-sm leading-6">
-                        {message.content}
-                      </p>
+                      {assistant ? (
+                        <MarkdownMessage content={message.content} />
+                      ) : (
+                        <p className="whitespace-pre-wrap text-sm leading-6">
+                          {message.content}
+                        </p>
+                      )}
 
                       <div className="mt-3 flex items-center justify-between gap-4 text-xs opacity-70">
                         <span>
@@ -433,6 +465,24 @@ export function ChatView({
                           <span>Confianca {message.confidence}%</span>
                         ) : null}
                       </div>
+
+                      {assistant && message.citations?.length ? (
+                        <details className="mt-3 rounded-lg border border-border/70 bg-background/45 px-3 py-2 text-xs">
+                          <summary className="cursor-pointer font-medium text-foreground">
+                            Fontes utilizadas ({message.citations.length})
+                          </summary>
+                          <div className="mt-2 grid gap-2">
+                            {message.citations.map((citation) => (
+                              <div key={citation.id} className="grid gap-0.5">
+                                <span className="font-medium text-foreground">{citation.title}</span>
+                                <span className="text-muted-foreground">
+                                  {categoryLabels[citation.category]} · {citationOrigin(citation)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      ) : null}
 
                       {assistant ? (
                         <div className="mt-3 flex flex-wrap items-center gap-1">
@@ -467,13 +517,15 @@ export function ChatView({
                                 : "ghost"
                             }
                             className="h-7 rounded-md px-2 text-xs"
-                            onClick={() =>
-                              updateFeedback(
-                                message.id,
-                                message.feedback,
-                                "NOT_HELPFUL",
-                              )
-                            }
+                            onClick={() => {
+                              if (message.feedback === "NOT_HELPFUL") {
+                                void updateFeedback(message.id, message.feedback, "NOT_HELPFUL");
+                                return;
+                              }
+                              setFeedbackReason("INCORRECT");
+                              setFeedbackComment("");
+                              setFeedbackDialogMessageId(message.id);
+                            }}
                             disabled={Boolean(updatingFeedbackId)}
                           >
                             <ThumbsDown className="size-3.5" />
@@ -562,7 +614,7 @@ export function ChatView({
         <Card className="border-border/80 shadow-sm">
           <CardHeader className="border-b border-border/70 px-5 py-4">
             <CardTitle className="text-base font-semibold">
-              Fontes da resposta
+              Fontes utilizadas ({sourceCount})
             </CardTitle>
           </CardHeader>
 
@@ -583,9 +635,7 @@ export function ChatView({
                   </p>
 
                   <p className="mt-3 text-[10px] font-semibold tracking-[0.16em] text-primary/70 uppercase">
-                    {citation.kind === "knowledge"
-                      ? "Base de conhecimento"
-                      : "Historico do cliente"}
+                    {citationOrigin(citation)} · {categoryLabels[citation.category]}
                   </p>
                 </div>
               ))
@@ -616,6 +666,43 @@ export function ChatView({
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={Boolean(feedbackDialogMessageId)}
+        onOpenChange={(open) => {
+          if (!open && !updatingFeedbackId) setFeedbackDialogMessageId("");
+        }}
+      >
+        <DialogContent className="max-w-md p-0">
+          <DialogHeader className="border-b border-border/70 px-5 py-4">
+            <DialogTitle>Por que esta resposta nao foi util?</DialogTitle>
+            <DialogDescription>
+              Seu feedback ajuda a aprimorar as proximas respostas. Nao inclua dados sensiveis.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 px-5 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="feedback-reason">Motivo</Label>
+              <Select value={feedbackReason} onValueChange={(value) => setFeedbackReason(value as FeedbackReason)}>
+                <SelectTrigger id="feedback-reason" className="w-full rounded-lg"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {feedbackReasons.map((reason) => <SelectItem key={reason.value} value={reason.value}>{reason.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="feedback-comment">Comentario (opcional)</Label>
+              <Textarea id="feedback-comment" value={feedbackComment} onChange={(event) => setFeedbackComment(event.target.value)} maxLength={500} rows={4} placeholder="Conte brevemente o que faltou." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setFeedbackDialogMessageId("")} disabled={Boolean(updatingFeedbackId)}>Cancelar</Button>
+            <Button type="button" onClick={() => void submitNotHelpfulFeedback()} disabled={Boolean(updatingFeedbackId)}>
+              {updatingFeedbackId ? "Enviando..." : "Enviar feedback"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
