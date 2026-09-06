@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import {
   Pencil,
   Plus,
+  Power,
+  PowerOff,
+  Search,
   ShieldCheck,
-  Trash2,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -40,6 +42,8 @@ interface UserRecord {
   phone: string;
   companyType: CompanyType;
   role: UserRole;
+  isActive: boolean;
+  lastLoginAt: string | null;
   createdAt: string;
 }
 
@@ -63,7 +67,10 @@ export function UsersView() {
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [changingStatusUserId, setChangingStatusUserId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | UserRole>("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -214,39 +221,61 @@ export function UsersView() {
     }
   }
 
-  async function handleDeleteUser(user: UserRecord) {
+  async function handleStatusChange(user: UserRecord) {
+    const nextIsActive = !user.isActive;
     const confirmed = window.confirm(
-      `Tem certeza que deseja remover o usuário "${user.name}"? Esta ação não poderá ser desfeita.`,
+      `Tem certeza que deseja ${nextIsActive ? "reativar" : "desativar"} o usuário "${user.name}"?`,
     );
 
     if (!confirmed) {
       return;
     }
 
-    setDeletingUserId(user.id);
+    setChangingStatusUserId(user.id);
 
     try {
       await apiRequest(`/api/admin/users/${user.id}`, {
-        method: "DELETE",
+        method: "PATCH",
+        body: JSON.stringify({ isActive: nextIsActive }),
       });
 
-      toast.success("Usuario removido com sucesso.");
+      toast.success(
+        nextIsActive
+          ? "Usuario reativado com sucesso."
+          : "Usuario desativado com sucesso.",
+      );
 
       setUsers((currentUsers) =>
-        currentUsers.filter(
-          (currentUser) => currentUser.id !== user.id,
+        currentUsers.map((currentUser) =>
+          currentUser.id === user.id
+            ? { ...currentUser, isActive: nextIsActive }
+            : currentUser,
         ),
       );
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel remover o usuario.",
+          : "Nao foi possivel alterar o status do usuario.",
       );
     } finally {
-      setDeletingUserId(null);
+      setChangingStatusUserId(null);
     }
   }
+
+  const filteredUsers = users.filter((user) => {
+    const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
+    const matchesSearch =
+      !normalizedSearch ||
+      user.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch) ||
+      user.email.toLocaleLowerCase("pt-BR").includes(normalizedSearch);
+    const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "ACTIVE" ? user.isActive : !user.isActive);
+
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
   return (
     <section className="surface-card overflow-hidden">
@@ -465,6 +494,41 @@ export function UsersView() {
         </Dialog>
       </div>
 
+      <div className="grid gap-3 border-b border-border/70 bg-muted/15 px-5 py-4 md:grid-cols-[minmax(0,1fr)_180px_160px] md:px-6">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por nome ou e-mail"
+            className="pl-9"
+          />
+        </div>
+
+        <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "ALL" | UserRole)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Todos os perfis" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos os perfis</SelectItem>
+            <SelectItem value="ADMIN">Administrador</SelectItem>
+            <SelectItem value="ANALYST">Analista</SelectItem>
+            <SelectItem value="SPECIALIST">Especialista</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "ALL" | "ACTIVE" | "INACTIVE")}>
+          <SelectTrigger>
+            <SelectValue placeholder="Todos os status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos os status</SelectItem>
+            <SelectItem value="ACTIVE">Ativo</SelectItem>
+            <SelectItem value="INACTIVE">Inativo</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <Dialog
         open={editingUser !== null}
         onOpenChange={(isOpen) => {
@@ -648,13 +712,13 @@ export function UsersView() {
           <div className="py-10 text-center text-sm text-muted-foreground">
             Carregando usuários...
           </div>
-        ) : users.length === 0 ? (
+        ) : filteredUsers.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
-            Nenhum usuário cadastrado.
+            Nenhum usuário encontrado.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[950px] text-left text-sm">
+            <table className="w-full min-w-[1120px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border/70 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">
                   <th className="px-3 py-3">
@@ -663,6 +727,10 @@ export function UsersView() {
 
                   <th className="px-3 py-3">
                     Perfil
+                  </th>
+
+                  <th className="px-3 py-3">
+                    Status
                   </th>
 
                   <th className="px-3 py-3">
@@ -677,6 +745,10 @@ export function UsersView() {
                     Cadastro
                   </th>
 
+                  <th className="px-3 py-3">
+                    Último acesso
+                  </th>
+
                   <th className="px-3 py-3 text-right">
                     Ações
                   </th>
@@ -684,7 +756,7 @@ export function UsersView() {
               </thead>
 
               <tbody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr
                     key={user.id}
                     className="border-b border-border/50 last:border-0"
@@ -714,6 +786,18 @@ export function UsersView() {
                       </span>
                     </td>
 
+                    <td className="px-3 py-4">
+                      <span
+                        className={
+                          user.isActive
+                            ? "inline-flex rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"
+                            : "inline-flex rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold text-muted-foreground"
+                        }
+                      >
+                        {user.isActive ? "Ativo" : "Inativo"}
+                      </span>
+                    </td>
+
                     <td className="px-3 py-4 text-muted-foreground">
                       {user.document}
                     </td>
@@ -728,6 +812,15 @@ export function UsersView() {
                       ).format(
                         new Date(user.createdAt),
                       )}
+                    </td>
+
+                    <td className="px-3 py-4 text-muted-foreground">
+                      {user.lastLoginAt
+                        ? new Intl.DateTimeFormat("pt-BR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          }).format(new Date(user.lastLoginAt))
+                        : "Nunca acessou"}
                     </td>
 
                     <td className="px-3 py-4">
@@ -755,23 +848,27 @@ export function UsersView() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            disabled={
-                              deletingUserId ===
-                              user.id
-                            }
+                            disabled={changingStatusUserId === user.id}
                             onClick={() =>
-                              void handleDeleteUser(
-                                user,
-                              )
+                              void handleStatusChange(user)
                             }
-                            className="text-destructive hover:text-destructive"
+                            className={
+                              user.isActive
+                                ? "text-destructive hover:text-destructive"
+                                : "text-primary hover:text-primary"
+                            }
                           >
-                            <Trash2 className="size-4" />
+                            {user.isActive ? (
+                              <PowerOff className="size-4" />
+                            ) : (
+                              <Power className="size-4" />
+                            )}
 
-                            {deletingUserId ===
-                            user.id
-                              ? "Removendo..."
-                              : "Remover"}
+                            {changingStatusUserId === user.id
+                              ? "Atualizando..."
+                              : user.isActive
+                                ? "Desativar"
+                                : "Reativar"}
                           </Button>
                         </div>
                       )}

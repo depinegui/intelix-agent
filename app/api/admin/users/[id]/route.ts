@@ -3,7 +3,7 @@ import { getSessionUser } from "@/lib/session";
 import { hasPermission } from "@/lib/permissions";
 import { createAuditLogSafely } from "@/services/audit-service";
 import {
-  deleteUserByAdmin,
+  setUserActiveByAdmin,
   updateUserByAdmin,
 } from "@/services/auth-service";
 
@@ -37,16 +37,44 @@ export async function PATCH(
     const { id } = await context.params;
     const body = await request.json();
 
-    const updatedUser = await updateUserByAdmin(
+    if (typeof body.isActive === "boolean") {
+      const updatedUser = await setUserActiveByAdmin(
+        id,
+        user.id,
+        body.isActive,
+      );
+
+      await createAuditLogSafely({
+        user,
+        action: "STATUS_CHANGE",
+        entityType: "USER",
+        entityId: updatedUser.id,
+        description: updatedUser.isActive
+          ? "Usuario reativado pelo administrador."
+          : "Usuario desativado pelo administrador.",
+        metadata: {
+          targetUserId: updatedUser.id,
+          targetUserName: updatedUser.name,
+          targetUserEmail: updatedUser.email,
+          targetUserRole: updatedUser.role,
+          isActive: updatedUser.isActive,
+        },
+      });
+
+      return NextResponse.json({ user: updatedUser });
+    }
+
+    const updateResult = await updateUserByAdmin(
       id,
       user.id,
       body,
     );
+    const updatedUser = updateResult.user;
 
     await createAuditLogSafely({
       user,
       action: "UPDATE",
-      entityType: "CHAT_MESSAGE",
+      entityType: "USER",
       entityId: updatedUser.id,
       description: "Usuario atualizado pelo administrador.",
       metadata: {
@@ -56,6 +84,21 @@ export async function PATCH(
         updatedUserRole: updatedUser.role,
       },
     });
+
+    if (updateResult.previousRole !== updatedUser.role) {
+      await createAuditLogSafely({
+        user,
+        action: "UPDATE",
+        entityType: "USER",
+        entityId: updatedUser.id,
+        description: "Perfil de acesso do usuario alterado pelo administrador.",
+        metadata: {
+          targetUserId: updatedUser.id,
+          previousRole: updateResult.previousRole,
+          newRole: updatedUser.role,
+        },
+      });
+    }
 
     return NextResponse.json({
       user: updatedUser,
@@ -67,64 +110,6 @@ export async function PATCH(
           error instanceof Error
             ? error.message
             : "Nao foi possivel atualizar o usuario.",
-      },
-      { status: 400 },
-    );
-  }
-}
-
-export async function DELETE(
-  _request: Request,
-  context: RouteContext,
-) {
-  const user = await getSessionUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { message: "Nao autorizado." },
-      { status: 401 },
-    );
-  }
-
-  if (!hasPermission(user, "MANAGE_USERS")) {
-    return NextResponse.json(
-      { message: "Acesso negado." },
-      { status: 403 },
-    );
-  }
-
-  try {
-    const { id } = await context.params;
-
-    const deletedUser = await deleteUserByAdmin(
-      id,
-      user.id,
-    );
-
-    await createAuditLogSafely({
-      user,
-      action: "DELETE",
-      entityType: "CHAT_MESSAGE",
-      entityId: deletedUser.id,
-      description: "Usuario removido pelo administrador.",
-      metadata: {
-        deletedUserId: deletedUser.id,
-        deletedUserName: deletedUser.name,
-        deletedUserEmail: deletedUser.email,
-        deletedUserRole: deletedUser.role,
-      },
-    });
-
-    return NextResponse.json({
-      message: "Usuario removido com sucesso.",
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel remover o usuario.",
       },
       { status: 400 },
     );

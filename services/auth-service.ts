@@ -42,6 +42,11 @@ const profileUpdateSchema = z.object({
   companyType: z.enum(["FISICA", "JURIDICA"]),
 });
 
+const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
+});
+
 const loginSchema = z.object({
   identifier: z.string().min(3),
   password: z.string().min(6),
@@ -79,13 +84,15 @@ function findDemoUserByIdentifier(identifier: string) {
 export async function getUserById(id: string) {
   if (prisma) {
     const user = await prisma.user.findUnique({
-      where: { id },
+      where: { id, isActive: true },
     });
 
     return user ? toSessionUser(user) : null;
   }
 
-  const user = demoStore.users.find((item) => item.id === id);
+  const user = demoStore.users.find(
+    (item) => item.id === id && item.isActive,
+  );
 
   return user ? toSessionUser(user) : null;
 }
@@ -148,6 +155,8 @@ export async function registerUser(input: RegisterInput) {
     updatedAt: now,
     resetToken: null,
     resetTokenExpiresAt: null,
+    isActive: true,
+    lastLoginAt: null,
   };
 
   demoStore.users.unshift(createdUser);
@@ -222,6 +231,8 @@ export async function createUserByAdmin(input: {
     updatedAt: now,
     resetToken: null,
     resetTokenExpiresAt: null,
+    isActive: true,
+    lastLoginAt: null,
   };
 
   demoStore.users.unshift(createdUser);
@@ -240,6 +251,8 @@ export async function listUsers() {
         phone: true,
         companyType: true,
         role: true,
+        isActive: true,
+        lastLoginAt: true,
         createdAt: true,
       },
       orderBy: {
@@ -250,6 +263,7 @@ export async function listUsers() {
     return users.map((user) => ({
       ...user,
       createdAt: user.createdAt.toISOString(),
+      lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     }));
   }
 
@@ -266,6 +280,8 @@ export async function listUsers() {
       phone: user.phone,
       companyType: user.companyType,
       role: user.role,
+      isActive: user.isActive,
+      lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
     }));
 }
@@ -345,7 +361,10 @@ export async function updateUserByAdmin(
       },
     });
 
-    return toSessionUser(updatedUser);
+    return {
+      user: toSessionUser(updatedUser),
+      previousRole: targetUser.role,
+    };
   }
 
   const targetUser = demoStore.users.find(
@@ -374,6 +393,7 @@ export async function updateUserByAdmin(
     );
   }
 
+  const previousRole = targetUser.role;
   targetUser.name = data.name;
   targetUser.email = data.email.toLowerCase();
   targetUser.document = data.document;
@@ -382,7 +402,10 @@ export async function updateUserByAdmin(
   targetUser.role = data.role;
   targetUser.updatedAt = new Date().toISOString();
 
-  return toSessionUser(targetUser);
+  return {
+    user: toSessionUser(targetUser),
+    previousRole,
+  };
 }
 
 export async function updateOwnProfile(
@@ -478,12 +501,13 @@ export async function updateOwnProfile(
   return toSessionUser(currentUser);
 }
 
-export async function deleteUserByAdmin(
+export async function setUserActiveByAdmin(
   targetUserId: string,
   currentUserId: string,
+  isActive: boolean,
 ) {
   if (targetUserId === currentUserId) {
-    throw new Error("Voce nao pode remover a sua propria conta.");
+    throw new Error("Voce nao pode alterar o status da sua propria conta.");
   }
 
   if (prisma) {
@@ -504,39 +528,46 @@ export async function deleteUserByAdmin(
     }
 
     if (targetUser.role === "ADMIN") {
-      throw new Error("Contas de administrador nao podem ser removidas.");
+      throw new Error("Contas de administrador nao podem ter o status alterado aqui.");
     }
 
-    await prisma.user.delete({
+    const updatedUser = await prisma.user.update({
       where: {
         id: targetUserId,
       },
+      data: { isActive },
     });
 
-    return targetUser;
+    return {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      isActive: updatedUser.isActive,
+    };
   }
 
-  const index = demoStore.users.findIndex(
+  const targetUser = demoStore.users.find(
     (user) => user.id === targetUserId,
   );
 
-  if (index === -1) {
+  if (!targetUser) {
     throw new Error("Usuario nao encontrado.");
   }
 
-  const targetUser = demoStore.users[index];
-
   if (targetUser.role === "ADMIN") {
-    throw new Error("Contas de administrador nao podem ser removidas.");
+    throw new Error("Contas de administrador nao podem ter o status alterado aqui.");
   }
 
-  demoStore.users.splice(index, 1);
+  targetUser.isActive = isActive;
+  targetUser.updatedAt = new Date().toISOString();
 
   return {
     id: targetUser.id,
     name: targetUser.name,
     email: targetUser.email,
     role: targetUser.role,
+    isActive: targetUser.isActive,
   };
 }
 
@@ -546,6 +577,7 @@ export async function loginUser(input: LoginInput) {
   if (prisma) {
     const user = await prisma.user.findFirst({
       where: {
+        isActive: true,
         OR: [
           { email: data.identifier.toLowerCase() },
           { document: data.identifier },
@@ -557,16 +589,72 @@ export async function loginUser(input: LoginInput) {
       throw new Error("Credenciais invalidas.");
     }
 
-    return toSessionUser(user);
+    const loggedInUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    return toSessionUser(loggedInUser);
   }
 
   const user = findDemoUserByIdentifier(data.identifier);
 
-  if (!user || !(await compare(data.password, user.passwordHash))) {
+  if (
+    !user ||
+    !user.isActive ||
+    !(await compare(data.password, user.passwordHash))
+  ) {
     throw new Error("Credenciais invalidas.");
   }
 
+  user.lastLoginAt = new Date().toISOString();
+  user.updatedAt = new Date().toISOString();
+
   return toSessionUser(user);
+}
+
+export async function changeOwnPassword(
+  currentUserId: string,
+  input: { currentPassword: string; newPassword: string },
+) {
+  const data = passwordChangeSchema.parse(input);
+
+  if (prisma) {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { id: true, passwordHash: true, isActive: true },
+    });
+
+    if (!currentUser || !currentUser.isActive) {
+      throw new Error("Usuario nao encontrado.");
+    }
+
+    if (!(await compare(data.currentPassword, currentUser.passwordHash))) {
+      throw new Error("A senha atual esta incorreta.");
+    }
+
+    await prisma.user.update({
+      where: { id: currentUserId },
+      data: { passwordHash: await hash(data.newPassword, 10) },
+    });
+
+    return;
+  }
+
+  const currentUser = demoStore.users.find(
+    (user) => user.id === currentUserId && user.isActive,
+  );
+
+  if (!currentUser) {
+    throw new Error("Usuario nao encontrado.");
+  }
+
+  if (!(await compare(data.currentPassword, currentUser.passwordHash))) {
+    throw new Error("A senha atual esta incorreta.");
+  }
+
+  currentUser.passwordHash = await hash(data.newPassword, 10);
+  currentUser.updatedAt = new Date().toISOString();
 }
 
 export async function recoverPassword(input: RecoveryInput) {

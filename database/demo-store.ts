@@ -167,6 +167,8 @@ export const seedUsers: DemoUserRecord[] = [
     companyType: "JURIDICA",
     role: "ADMIN",
     passwordHash: demoPasswordHash,
+    isActive: true,
+    lastLoginAt: null,
     createdAt: daysAgo(30),
     updatedAt: daysAgo(1),
     resetToken: null,

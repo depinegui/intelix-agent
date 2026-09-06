@@ -37,6 +37,8 @@ export interface SessionUser {
 
 export interface DemoUserRecord extends SessionUser {
   passwordHash: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
   resetToken: string | null;

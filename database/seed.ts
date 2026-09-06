@@ -28,6 +28,10 @@ async function main() {
         phone: user.phone,
         companyType: user.companyType,
         role: user.role,
+        isActive: user.isActive,
+        lastLoginAt: user.lastLoginAt
+          ? new Date(user.lastLoginAt)
+          : null,
         createdAt: new Date(user.createdAt),
         updatedAt: new Date(user.updatedAt),
       },

@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     await createAuditLogSafely({
       user,
       action: "CREATE",
-      entityType: "CHAT_MESSAGE",
+      entityType: "USER",
       entityId: createdUser.id,
       description: "Usuario criado pelo administrador.",
       metadata: {

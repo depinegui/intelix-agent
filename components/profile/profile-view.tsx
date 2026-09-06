@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Save, ShieldCheck, UserRound } from "lucide-react";
+import { KeyRound, Save, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { apiRequest } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,10 @@ export function ProfileView({
       initialUser.companyType as CompanyType,
     );
   const [saving, setSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -80,6 +84,42 @@ export function ProfileView({
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePasswordChange(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (newPassword !== confirmPassword) {
+      toast.error("As novas senhas precisam ser iguais.");
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      await apiRequest("/api/profile/password", {
+        method: "POST",
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Senha atualizada com sucesso.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel atualizar a senha.",
+      );
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -241,6 +281,83 @@ export function ProfileView({
             Alterações de perfil são realizadas somente por um administrador.
           </p>
         </aside>
+      </div>
+
+      <div className="border-t border-border/70 p-5 md:p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+            <KeyRound className="size-5 text-primary" />
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-foreground">
+              Alterar senha
+            </h3>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Confirme sua senha atual e defina uma nova senha com ao menos 8 caracteres.
+            </p>
+          </div>
+        </div>
+
+        <form
+          className="grid max-w-3xl gap-4 md:grid-cols-3 md:items-end"
+          onSubmit={handlePasswordChange}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="profile-current-password">
+              Senha atual
+            </Label>
+
+            <Input
+              id="profile-current-password"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-new-password">
+              Nova senha
+            </Label>
+
+            <Input
+              id="profile-new-password"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              minLength={8}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-confirm-password">
+              Confirmar nova senha
+            </Label>
+
+            <Input
+              id="profile-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              minLength={8}
+              required
+            />
+          </div>
+
+          <div className="md:col-span-3 flex justify-end">
+            <Button type="submit" disabled={changingPassword}>
+              <KeyRound className="size-4" />
+              {changingPassword ? "Atualizando..." : "Atualizar senha"}
+            </Button>
+          </div>
+        </form>
       </div>
     </section>
   );

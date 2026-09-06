@@ -31,6 +31,13 @@ export async function PATCH(request: Request) {
   try {
     const body = await request.json();
 
+    if ("role" in body) {
+      return NextResponse.json(
+        { message: "O perfil de acesso nao pode ser alterado pelo proprio usuario." },
+        { status: 403 },
+      );
+    }
+
     const updatedUser = await updateOwnProfile(
       user.id,
       body,
@@ -39,7 +46,7 @@ export async function PATCH(request: Request) {
     await createAuditLogSafely({
       user,
       action: "UPDATE",
-      entityType: "CHAT_MESSAGE",
+      entityType: "USER",
       entityId: updatedUser.id,
       description: "Perfil atualizado pelo proprio usuario.",
       metadata: {

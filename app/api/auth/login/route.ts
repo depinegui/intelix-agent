@@ -15,8 +15,8 @@ export async function POST(request: Request) {
 
     await createAuditLogSafely({
       user,
-      action: "CREATE",
-      entityType: "CHAT_MESSAGE",
+      action: "UPDATE",
+      entityType: "USER",
       entityId: user.id,
       description: "Login realizado no Intelix.",
       metadata: {

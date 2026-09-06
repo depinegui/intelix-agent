@@ -72,6 +72,7 @@ enum AuditAction {
 }
 
 enum AuditEntityType {
+  USER
   KNOWLEDGE_DOCUMENT
   TICKET
   CHAT_MESSAGE
@@ -86,6 +87,8 @@ model User {
   phone               String
   companyType         CompanyType
   role                UserRole           @default(ANALYST)
+  isActive            Boolean            @default(true)
+  lastLoginAt         DateTime?
   resetToken          String?
   resetTokenExpiresAt DateTime?
   tickets             Ticket[]           @relation("RequesterTickets")
