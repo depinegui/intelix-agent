@@ -11,6 +11,7 @@ import {
   PlusSquare,
   Settings,
   Ticket,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -58,6 +59,12 @@ const navItems: Array<{
     permission: "VIEW_KNOWLEDGE",
   },
   {
+    href: "/usuarios",
+    label: "Usuários",
+    icon: Users,
+    permission: "MANAGE_USERS",
+  },
+  {
     href: "/configuracoes",
     label: "Configuracoes",
     icon: Settings,
@@ -76,16 +83,19 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
   const visibleNavItems = navItems.filter((item) =>
     permissions.includes(item.permission),
   );
 
   async function handleLogout() {
     setLoading(true);
+
     try {
       await apiRequest("/api/auth/logout", {
         method: "POST",
       });
+
       toast.success("Sessao encerrada.");
       router.push("/login");
       router.refresh();
@@ -135,11 +145,16 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
                   {user.role}
                 </span>
               </p>
+
               <div className="flex items-center gap-2 text-xs font-medium text-sidebar-foreground/70">
-                <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+                <span
+                  className="size-1.5 rounded-full bg-primary"
+                  aria-hidden="true"
+                />
                 Online
               </div>
             </div>
+
             <Button
               variant="outline"
               size="lg"
@@ -157,6 +172,7 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
           <div className="surface-card flex flex-col gap-3 p-4 lg:hidden">
             <div className="flex items-center justify-between gap-4">
               <BrandMark compact />
+
               <Button
                 variant="outline"
                 className="rounded-lg"
@@ -167,11 +183,14 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
                 Sair
               </Button>
             </div>
+
             <div className="flex gap-2 overflow-x-auto pb-1">
               {visibleNavItems.map((item) => {
                 const isActive =
                   pathname === item.href ||
-                  (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                  (item.href !== "/dashboard" &&
+                    pathname.startsWith(item.href));
+
                 return (
                   <Link
                     key={item.href}
@@ -196,10 +215,12 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
               <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
                 Intelix Agent
               </h1>
+
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Suporte inteligente para sistemas de gestão empresarial
               </p>
             </div>
+
             <div className="flex flex-col items-start gap-2 md:items-end">
               <p className="text-sm font-semibold text-foreground">
                 {user.name}
@@ -208,8 +229,12 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
                   {user.role}
                 </span>
               </p>
+
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+                <span
+                  className="size-1.5 rounded-full bg-primary"
+                  aria-hidden="true"
+                />
                 Online
               </div>
             </div>

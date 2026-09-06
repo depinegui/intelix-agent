@@ -9,7 +9,8 @@ export type Permission =
   | "VIEW_KNOWLEDGE"
   | "MANAGE_KNOWLEDGE"
   | "DELETE_KNOWLEDGE"
-  | "VIEW_SETTINGS";
+  | "VIEW_SETTINGS"
+  | "MANAGE_USERS";
 
 const allPermissions: Permission[] = [
   "VIEW_DASHBOARD",
@@ -21,6 +22,7 @@ const allPermissions: Permission[] = [
   "MANAGE_KNOWLEDGE",
   "DELETE_KNOWLEDGE",
   "VIEW_SETTINGS",
+  "MANAGE_USERS",
 ];
 
 const permissionsByRole: Record<UserRole, Permission[]> = {
@@ -53,5 +55,6 @@ export function hasPermission(
   permission: Permission,
 ) {
   const role = typeof subject === "string" ? subject : subject.role;
+
   return permissionsByRole[role].includes(permission);
 }

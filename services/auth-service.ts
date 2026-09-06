@@ -8,6 +8,7 @@ import type {
   RecoveryInput,
   RegisterInput,
   SessionUser,
+  UserRole,
 } from "@/types";
 import { normalizeIdentifier } from "@/utils/format";
 
@@ -18,6 +19,10 @@ const registerSchema = z.object({
   document: z.string().min(11),
   phone: z.string().min(8),
   companyType: z.enum(["FISICA", "JURIDICA"]),
+});
+
+const adminCreateUserSchema = registerSchema.extend({
+  role: z.enum(["ANALYST", "SPECIALIST"]),
 });
 
 const loginSchema = z.object({
@@ -44,6 +49,7 @@ function toSessionUser(user: DemoUserRecord | SessionUser) {
 
 function findDemoUserByIdentifier(identifier: string) {
   const normalized = normalizeIdentifier(identifier);
+
   return demoStore.users.find((user) => {
     if (user.email.toLowerCase() === identifier.toLowerCase()) {
       return true;
@@ -63,6 +69,7 @@ export async function getUserById(id: string) {
   }
 
   const user = demoStore.users.find((item) => item.id === id);
+
   return user ? toSessionUser(user) : null;
 }
 
@@ -101,7 +108,8 @@ export async function registerUser(input: RegisterInput) {
   const duplicate = demoStore.users.find(
     (user) =>
       user.email.toLowerCase() === data.email.toLowerCase() ||
-      normalizeIdentifier(user.document) === normalizeIdentifier(data.document),
+      normalizeIdentifier(user.document) ===
+        normalizeIdentifier(data.document),
   );
 
   if (duplicate) {
@@ -109,6 +117,7 @@ export async function registerUser(input: RegisterInput) {
   }
 
   const now = new Date().toISOString();
+
   const createdUser: DemoUserRecord = {
     id: `usr_${crypto.randomUUID().slice(0, 8)}`,
     name: data.name,
@@ -125,7 +134,185 @@ export async function registerUser(input: RegisterInput) {
   };
 
   demoStore.users.unshift(createdUser);
+
   return toSessionUser(createdUser);
+}
+
+export async function createUserByAdmin(input: {
+  name: string;
+  email: string;
+  password: string;
+  document: string;
+  phone: string;
+  companyType: "FISICA" | "JURIDICA";
+  role: Extract<UserRole, "ANALYST" | "SPECIALIST">;
+}) {
+  const data = adminCreateUserSchema.parse(input);
+  const passwordHash = await hash(data.password, 10);
+
+  if (prisma) {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: data.email.toLowerCase() },
+          { document: data.document },
+        ],
+      },
+    });
+
+    if (existingUser) {
+      throw new Error("Ja existe uma conta com este e-mail ou documento.");
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email.toLowerCase(),
+        passwordHash,
+        document: data.document,
+        phone: data.phone,
+        companyType: data.companyType,
+        role: data.role,
+      },
+    });
+
+    return toSessionUser(user);
+  }
+
+  const duplicate = demoStore.users.find(
+    (user) =>
+      user.email.toLowerCase() === data.email.toLowerCase() ||
+      normalizeIdentifier(user.document) ===
+        normalizeIdentifier(data.document),
+  );
+
+  if (duplicate) {
+    throw new Error("Ja existe uma conta com este e-mail ou documento.");
+  }
+
+  const now = new Date().toISOString();
+
+  const createdUser: DemoUserRecord = {
+    id: `usr_${crypto.randomUUID().slice(0, 8)}`,
+    name: data.name,
+    email: data.email.toLowerCase(),
+    document: data.document,
+    phone: data.phone,
+    companyType: data.companyType,
+    role: data.role,
+    passwordHash,
+    createdAt: now,
+    updatedAt: now,
+    resetToken: null,
+    resetTokenExpiresAt: null,
+  };
+
+  demoStore.users.unshift(createdUser);
+
+  return toSessionUser(createdUser);
+}
+
+export async function listUsers() {
+  if (prisma) {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        document: true,
+        phone: true,
+        companyType: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return users.map((user) => ({
+      ...user,
+      createdAt: user.createdAt.toISOString(),
+    }));
+  }
+
+  return [...demoStore.users]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      document: user.document,
+      phone: user.phone,
+      companyType: user.companyType,
+      role: user.role,
+      createdAt: user.createdAt,
+    }));
+}
+
+export async function deleteUserByAdmin(
+  targetUserId: string,
+  currentUserId: string,
+) {
+  if (targetUserId === currentUserId) {
+    throw new Error("Voce nao pode remover a sua propria conta.");
+  }
+
+  if (prisma) {
+    const targetUser = await prisma.user.findUnique({
+      where: {
+        id: targetUserId,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (!targetUser) {
+      throw new Error("Usuario nao encontrado.");
+    }
+
+    if (targetUser.role === "ADMIN") {
+      throw new Error("Contas de administrador nao podem ser removidas.");
+    }
+
+    await prisma.user.delete({
+      where: {
+        id: targetUserId,
+      },
+    });
+
+    return targetUser;
+  }
+
+  const index = demoStore.users.findIndex(
+    (user) => user.id === targetUserId,
+  );
+
+  if (index === -1) {
+    throw new Error("Usuario nao encontrado.");
+  }
+
+  const targetUser = demoStore.users[index];
+
+  if (targetUser.role === "ADMIN") {
+    throw new Error("Contas de administrador nao podem ser removidas.");
+  }
+
+  demoStore.users.splice(index, 1);
+
+  return {
+    id: targetUser.id,
+    name: targetUser.name,
+    email: targetUser.email,
+    role: targetUser.role,
+  };
 }
 
 export async function loginUser(input: LoginInput) {
