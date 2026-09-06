@@ -16,8 +16,8 @@ async function main() {
     console.log(`Registros encontrados: ${result.recordsFound}`);
     console.log(`Registros indexados: ${result.recordsIndexed}`);
     console.log(`Trechos indexados: ${result.chunksIndexed}`);
-    console.log(`Pasta monitorada: ${result.knowledgeDirectory}`);
-    console.log(`Indice gerado em: ${result.indexFile}`);
+    console.log(`Fonte utilizada: ${result.knowledgeDirectory}`);
+    console.log(`Indice persistido em: ${result.indexFile}`);
   } catch (error) {
     if (
       error instanceof Error &&

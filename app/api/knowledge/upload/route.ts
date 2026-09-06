@@ -1,10 +1,9 @@
 import path from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import { hasPermission } from "@/lib/permissions";
 import { createAuditLogSafely } from "@/services/audit-service";
-import { indexKnowledgeBase } from "@/services/knowledge-rag-service";
+import { createUploadedKnowledgeDocument } from "@/services/knowledge-service";
 
 export const runtime = "nodejs";
 
@@ -27,6 +26,15 @@ const KNOWLEDGE_CATEGORIES = new Set([
 ]);
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024;
+
+const MIME_TYPES_BY_EXTENSION: Record<string, string[]> = {
+  ".txt": ["text/plain"],
+  ".md": ["text/markdown", "text/plain"],
+  ".pdf": ["application/pdf"],
+  ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ".csv": ["text/csv", "application/csv", "text/plain"],
+  ".xlsx": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+};
 
 function sanitizeFileName(fileName: string) {
   const extension = path.extname(fileName).toLowerCase();
@@ -107,50 +115,77 @@ export async function POST(request: Request) {
 
     const safeFileName = sanitizeFileName(file.name);
 
-    const uploadDirectory = path.join(
-      process.cwd(),
-      "knowledge",
-      "uploads",
-      category.toLowerCase(),
-    );
-
-    await mkdir(uploadDirectory, { recursive: true });
-
-    const storedFileName = `${Date.now()}-${safeFileName}`;
-    const filePath = path.join(uploadDirectory, storedFileName);
-
     const buffer = Buffer.from(await file.arrayBuffer());
+    const result = await createUploadedKnowledgeDocument({
+      fileName: safeFileName,
+      mimeType: file.type || "application/octet-stream",
+      fileSize: file.size,
+      fileData: buffer,
+      category: category as "NF_E" | "NFC_E" | "ESTOQUE" | "INVENTARIO" | "PCP" | "PROCEDIMENTOS",
+      uploadedById: user.id,
+    });
 
-    await writeFile(filePath, buffer);
-
-    const indexingResult = await indexKnowledgeBase();
+    const processingFailed = result.document.processingStatus === "ERROR";
 
     await createAuditLogSafely({
       user,
-      action: "CREATE",
+      action: processingFailed ? "UPDATE" : "CREATE",
       entityType: "KNOWLEDGE_DOCUMENT",
+      entityId: result.document.id,
       description: "Arquivo enviado para a base de conhecimento.",
       metadata: {
         event: "KNOWLEDGE_UPLOAD",
-        originalFileName: file.name,
-        storedFileName,
+        fileName: safeFileName,
         category,
         size: file.size,
+        processingStatus: result.document.processingStatus,
       },
     });
 
+    if (processingFailed) {
+      await createAuditLogSafely({
+        user,
+        action: "UPDATE",
+        entityType: "KNOWLEDGE_DOCUMENT",
+        entityId: result.document.id,
+        description: "Falha ao processar arquivo enviado para a base de conhecimento.",
+        metadata: {
+          event: "KNOWLEDGE_PROCESSING_FAILED",
+          category,
+          fileName: safeFileName,
+        },
+      });
+    } else if (result.created) {
+      await createAuditLogSafely({
+        user,
+        action: "UPDATE",
+        entityType: "KNOWLEDGE_DOCUMENT",
+        entityId: result.document.id,
+        description: "Processamento do documento da base concluido.",
+        metadata: {
+          event: "KNOWLEDGE_PROCESSING_COMPLETED",
+          chunksIndexed: result.document.processingStatus === "READY",
+        },
+      });
+    }
+
+    if (file.type && !MIME_TYPES_BY_EXTENSION[extension].includes(file.type)) {
+      return NextResponse.json(
+        { message: "O tipo MIME do arquivo nao corresponde ao formato informado." },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json(
       {
-        message: "Arquivo enviado e base reindexada com sucesso.",
-        file: {
-          name: file.name,
-          storedFileName,
-          category,
-          size: file.size,
-        },
-        indexing: indexingResult,
+        message: processingFailed
+          ? "Arquivo salvo, mas ocorreu uma falha no processamento."
+          : result.created
+            ? "Arquivo enviado e indexado com sucesso."
+            : "Este arquivo ja esta disponivel na base de conhecimento.",
+        document: result.document,
       },
-      { status: 201 },
+      { status: result.created ? 201 : 200 },
     );
   } catch (error) {
     console.error("Falha ao enviar arquivo para a base.", error);

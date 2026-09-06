@@ -52,6 +52,19 @@ enum KnowledgeCategory {
   PROCEDIMENTOS
 }
 
+enum KnowledgeDocumentOrigin {
+  MANUAL
+  UPLOAD
+  LEGACY_IMPORT
+}
+
+enum KnowledgeProcessingStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
 enum MessageRole {
   USER
   ASSISTANT
@@ -93,6 +106,7 @@ model User {
   resetTokenExpiresAt DateTime?
   tickets             Ticket[]           @relation("RequesterTickets")
   conversations       ChatConversation[]
+  uploadedKnowledgeDocuments KnowledgeDocument[] @relation("KnowledgeUploader")
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 }
@@ -129,19 +143,51 @@ model TicketHistory {
 }
 
 model KnowledgeDocument {
-  id        String            @id @default(cuid())
-  title     String
-  slug      String            @unique
-  excerpt   String
-  content   String
-  category  KnowledgeCategory
-  tags      String[]
-  views     Int               @default(0)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id                String                    @id @default(cuid())
+  title             String
+  slug              String                    @unique
+  excerpt           String
+  content           String
+  category          KnowledgeCategory
+  tags              String[]
+  views             Int                       @default(0)
+  origin            KnowledgeDocumentOrigin  @default(MANUAL)
+  processingStatus  KnowledgeProcessingStatus @default(PENDING)
+  processingError   String?
+  processedAt       DateTime?
+  sourceKey         String?                   @unique
+  contentHash       String?
+  fileName          String?
+  mimeType          String?
+  fileSize          Int?
+  fileData          Bytes?
+  uploadedById      String?
+  uploadedBy        User?                     @relation("KnowledgeUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  chunks            KnowledgeChunk[]
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
 
   @@index([category])
   @@index([updatedAt])
+  @@index([processingStatus, updatedAt])
+  @@index([origin, updatedAt])
+}
+
+model KnowledgeChunk {
+  id          String            @id @default(cuid())
+  documentId  String
+  chunkIndex  Int
+  content     String
+  excerpt     String
+  searchText  String
+  embedding   Json?
+  metadata    Json?
+  document    KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
 }
 
 model ChatConversation {

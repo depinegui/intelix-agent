@@ -24,6 +24,8 @@ export type KnowledgeCategory =
   | "PROCEDIMENTOS";
 export type MessageRole = "USER" | "ASSISTANT" | "SYSTEM";
 export type MessageFeedback = "HELPFUL" | "NOT_HELPFUL";
+export type KnowledgeDocumentOrigin = "MANUAL" | "UPLOAD" | "LEGACY_IMPORT";
+export type KnowledgeProcessingStatus = "PENDING" | "PROCESSING" | "READY" | "ERROR";
 
 export interface SessionUser {
   id: string;
@@ -80,6 +82,13 @@ export interface KnowledgeDocument {
   category: KnowledgeCategory;
   tags: string[];
   views: number;
+  origin: KnowledgeDocumentOrigin;
+  processingStatus: KnowledgeProcessingStatus;
+  processingError?: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
+  processedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

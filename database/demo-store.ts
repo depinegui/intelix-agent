@@ -95,6 +95,8 @@ function createKnowledgeDocument(
     category,
     tags,
     views,
+    origin: "MANUAL",
+    processingStatus: "READY",
     createdAt,
     updatedAt: createdAt,
   };

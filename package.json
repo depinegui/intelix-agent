@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev --schema database/schema.prisma",
     "db:seed": "tsx database/seed.ts",
     "index:knowledge": "tsx scripts/index-knowledge.ts",
+    "import:knowledge": "tsx scripts/import-legacy-knowledge.ts",
     "diagnose:rag": "tsx scripts/diagnose-rag.ts",
     "postinstall": "prisma generate --schema database/schema.prisma"
   },

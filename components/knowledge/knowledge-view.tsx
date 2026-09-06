@@ -40,7 +40,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type {
   KnowledgeDocument,
+  KnowledgeDocumentOrigin,
   KnowledgeInput,
+  KnowledgeProcessingStatus,
   KnowledgeOverviewStats,
 } from "@/types";
 import { categoryLabels, formatShortDate } from "@/utils/format";
@@ -70,6 +72,19 @@ const emptyForm: KnowledgeInput = {
   content: "",
   category: "NF_E",
   tags: [],
+};
+
+const processingStatusLabels: Record<KnowledgeProcessingStatus, string> = {
+  PENDING: "Pendente",
+  PROCESSING: "Processando",
+  READY: "Pronto",
+  ERROR: "Erro",
+};
+
+const originLabels: Record<KnowledgeDocumentOrigin, string> = {
+  MANUAL: "Cadastro manual",
+  UPLOAD: "Upload",
+  LEGACY_IMPORT: "Base canônica importada",
 };
 
 export function KnowledgeView({
@@ -106,9 +121,14 @@ export function KnowledgeView({
     });
   }, [deferredSearch, documents]);
 
-  const highlights = useMemo(
-    () => getKnowledgeHighlights(documents),
+  const readyDocuments = useMemo(
+    () => documents.filter((document) => document.processingStatus === "READY"),
     [documents],
+  );
+
+  const highlights = useMemo(
+    () => getKnowledgeHighlights(readyDocuments),
+    [readyDocuments],
   );
 
   function openCreateDialog() {
@@ -209,18 +229,24 @@ export function KnowledgeView({
 
       const response = await apiRequest<{
         message: string;
-        file: {
-          name: string;
-          storedFileName: string;
-          category: string;
-          size: number;
-        };
+        document: KnowledgeDocument;
       }>("/api/knowledge/upload", {
         method: "POST",
         body: formData,
       });
 
-      toast.success(response.message);
+      if (response.document.processingStatus === "ERROR") {
+        toast.error(response.message);
+      } else {
+        toast.success(response.message);
+      }
+
+      setDocuments((current) => {
+        const existing = current.find((document) => document.id === response.document.id);
+        return existing
+          ? current.map((document) => document.id === response.document.id ? response.document : document)
+          : [response.document, ...current];
+      });
 
       setUploadFile(null);
       setUploadDialogOpen(false);
@@ -266,11 +292,11 @@ export function KnowledgeView({
           <Card className="border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)]">
             <CardHeader className="px-4 pt-4">
               <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">
-                Documentos disponíveis
+                Documentos prontos
               </CardDescription>
 
               <CardTitle className="text-3xl font-semibold">
-                {documents.length}
+                {readyDocuments.length}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -394,8 +420,8 @@ export function KnowledgeView({
                     </CardTitle>
                   </div>
 
-                  <Badge variant="secondary">
-                    {document.views} views
+                  <Badge variant={document.processingStatus === "ERROR" ? "destructive" : "secondary"}>
+                    {processingStatusLabels[document.processingStatus]}
                   </Badge>
                 </div>
               </CardHeader>
@@ -406,6 +432,9 @@ export function KnowledgeView({
                 </p>
 
                 <div className="flex flex-wrap gap-2">
+                  <span className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                    {originLabels[document.origin]}
+                  </span>
                   {document.tags.map((tag) => (
                     <span
                       key={tag}
@@ -416,8 +445,14 @@ export function KnowledgeView({
                   ))}
                 </div>
 
+                {document.processingError ? (
+                  <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs leading-5 text-destructive">
+                    {document.processingError}
+                  </p>
+                ) : null}
+
                 <div className="flex items-center justify-between gap-3 pt-2 text-sm text-muted-foreground">
-                  <span>{formatShortDate(document.updatedAt)}</span>
+                  <span>{formatShortDate(document.processedAt ?? document.updatedAt)}</span>
 
                   {canManage || canDelete ? (
                     <div className="flex gap-2">
@@ -581,8 +616,8 @@ export function KnowledgeView({
 
             <DialogDescription>
               Adicione um arquivo à base de conhecimento. Após o envio, o
-              Intelix reindexará a base para disponibilizar o novo conteúdo ao
-              agente.
+              O arquivo será armazenado e indexado de forma incremental para
+              disponibilizar seu conteúdo ao agente.
             </DialogDescription>
           </DialogHeader>
 
@@ -646,7 +681,7 @@ export function KnowledgeView({
             {uploading ? (
               <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/30 p-3 text-sm text-muted-foreground">
                 <LoaderCircle className="size-4 animate-spin" />
-                Enviando arquivo e reindexando a base...
+                Enviando arquivo e processando seu conteúdo...
               </div>
             ) : null}
           </div>

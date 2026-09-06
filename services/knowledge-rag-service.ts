@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
+import { prisma } from "@/lib/prisma";
+
 import {
   OPENAI_EMBEDDING_MODEL,
   getOpenAiClient,
@@ -70,6 +72,7 @@ const NO_LEXICAL_SUPPORT_CATEGORY_PENALTY = 0.04;
 const NEAR_DUPLICATE_TOKEN_OVERLAP = 0.8;
 
 const EMBEDDING_BATCH_SIZE = 50;
+const EMBEDDING_REQUEST_TIMEOUT_MS = 60_000;
 
 
 const PORTUGUESE_STOPWORDS = new Set([
@@ -340,6 +343,23 @@ export interface KnowledgeIndexingResult {
   indexFile: string;
 
   files: IndexedFileSummary[];
+
+  documentsFound?: number;
+  documentsImported?: number;
+  documentsSkipped?: number;
+  documentsWithError?: number;
+}
+
+export interface KnowledgeImportProgress {
+  phase: "database" | "scan" | "document" | "embedding" | "completed";
+  message: string;
+  document?: string;
+  current?: number;
+  total?: number;
+}
+
+export interface KnowledgeIndexingOptions {
+  onProgress?: (progress: KnowledgeImportProgress) => void;
 }
 
 
@@ -1813,17 +1833,19 @@ async function extractRawTextFromFile(
       )
       .toLowerCase();
 
-  if (
-    extension === ".txt" ||
-    extension === ".md" ||
-    extension === ".csv"
-  ) {
-    return normalizeWhitespace(
-      await fs.readFile(
-        filePath,
-        "utf8",
-      ),
-    );
+  return extractRawTextFromBuffer(
+    await fs.readFile(filePath),
+    extension,
+  );
+}
+
+
+async function extractRawTextFromBuffer(
+  fileBuffer: Buffer,
+  extension: string,
+) {
+  if (extension === ".txt" || extension === ".md" || extension === ".csv") {
+    return normalizeWhitespace(fileBuffer.toString("utf8"));
   }
 
   if (
@@ -1836,14 +1858,9 @@ async function extractRawTextFromFile(
         "pdf-parse"
       );
 
-    const content =
-      await fs.readFile(
-        filePath,
-      );
-
     const parser =
       new PDFParse({
-        data: content,
+        data: fileBuffer,
       });
 
     const result =
@@ -1865,9 +1882,7 @@ async function extractRawTextFromFile(
       );
 
     const result =
-      await mammoth.extractRawText({
-        path: filePath,
-      });
+      await mammoth.extractRawText({ buffer: fileBuffer });
 
     return normalizeWhitespace(
       result.value,
@@ -1989,6 +2004,60 @@ async function extractSpreadsheetKnowledge(
 }
 
 
+async function extractSpreadsheetKnowledgeFromBuffer(
+  fileBuffer: Buffer,
+  relativeSource: string,
+): Promise<ExtractedKnowledgeFile> {
+  const checksum = crypto.createHash("sha1").update(fileBuffer).digest("hex");
+  const XLSX = await import("xlsx");
+  const workbook = XLSX.read(fileBuffer, { type: "buffer", cellDates: false });
+  const chunks: RawChunk[] = [];
+  let recordsFound = 0;
+  let recordsIndexed = 0;
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+      defval: "",
+      raw: false,
+    });
+    rows.forEach((row, rowIndex) => {
+      const parsedRow = buildSpreadsheetRow(row, sheetName, rowIndex + 2);
+      if (!parsedRow) return;
+      recordsFound += 1;
+      const chunk = createSpreadsheetChunk(parsedRow, relativeSource);
+      if (!chunk) return;
+      recordsIndexed += 1;
+      chunks.push(chunk);
+    });
+  }
+
+  return { checksum, chunks, recordsFound, recordsIndexed };
+}
+
+
+async function extractKnowledgeBuffer(
+  fileBuffer: Buffer,
+  fileName: string,
+  relativeSource: string,
+): Promise<ExtractedKnowledgeFile> {
+  const extension = path.extname(fileName).toLowerCase();
+  if (extension === ".xlsx") {
+    return extractSpreadsheetKnowledgeFromBuffer(fileBuffer, relativeSource);
+  }
+
+  const checksum = crypto.createHash("sha1").update(fileBuffer).digest("hex");
+  const rawText = await extractRawTextFromBuffer(fileBuffer, extension);
+  if (!rawText) return { checksum, chunks: [], recordsFound: 0, recordsIndexed: 0 };
+  return {
+    checksum,
+    chunks: createGenericChunksFromText(rawText, relativeSource),
+    recordsFound: 1,
+    recordsIndexed: 1,
+  };
+}
+
+
 async function extractKnowledgeFile(
   filePath: string,
   relativeSource: string,
@@ -2055,12 +2124,15 @@ async function extractKnowledgeFile(
 
 async function createEmbeddings(
   input: string[],
+  onBatchProgress?: (current: number, total: number) => void,
 ) {
   const client =
     getOpenAiClient();
 
   const embeddings:
     number[][] = [];
+
+  const totalBatches = Math.ceil(input.length / EMBEDDING_BATCH_SIZE);
 
   for (
     let index = 0;
@@ -2074,16 +2146,31 @@ async function createEmbeddings(
           EMBEDDING_BATCH_SIZE,
       );
 
-    const response =
-      await client
-        .embeddings
-        .create({
-          model:
-            OPENAI_EMBEDDING_MODEL,
+    const batchNumber = Math.floor(index / EMBEDDING_BATCH_SIZE) + 1;
+    onBatchProgress?.(batchNumber, totalBatches);
 
-          input:
-            batch,
-        });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), EMBEDDING_REQUEST_TIMEOUT_MS);
+
+    let response;
+    try {
+      response = await client.embeddings.create(
+        {
+          model: OPENAI_EMBEDDING_MODEL,
+          input: batch,
+        },
+        { signal: controller.signal },
+      );
+    } catch (error) {
+      const reason = controller.signal.aborted
+        ? `Tempo limite de ${EMBEDDING_REQUEST_TIMEOUT_MS / 1000}s excedido ao gerar embeddings.`
+        : error instanceof Error
+          ? error.message
+          : "Falha desconhecida ao gerar embeddings.";
+      throw new Error(reason, { cause: error });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     embeddings.push(
       ...response.data.map(
@@ -2097,7 +2184,151 @@ async function createEmbeddings(
 }
 
 
+function getPersistentSource(document: {
+  sourceKey: string | null;
+  slug: string;
+}) {
+  return document.sourceKey ?? `manual:${document.slug}`;
+}
+
+
+export async function processPersistentKnowledgeDocument(
+  documentId: string,
+  options?: Pick<KnowledgeIndexingOptions, "onProgress">,
+) {
+  if (!prisma) {
+    throw new Error("O processamento persistente requer um banco de dados configurado.");
+  }
+
+  const document = await prisma.knowledgeDocument.findUnique({ where: { id: documentId } });
+  if (!document) throw new Error("Documento da base nao encontrado.");
+
+  await prisma.knowledgeDocument.update({
+    where: { id: document.id },
+    data: { processingStatus: "PROCESSING", processingError: null },
+  });
+
+  try {
+    options?.onProgress?.({
+      phase: "document",
+      message: "Extraindo conteúdo e preparando chunks.",
+      document: document.fileName ?? document.title,
+    });
+
+    const source = getPersistentSource(document);
+    const extracted = document.fileData
+      ? await extractKnowledgeBuffer(Buffer.from(document.fileData), document.fileName ?? document.title, source)
+      : {
+          checksum: document.contentHash ?? crypto.createHash("sha1").update(document.content).digest("hex"),
+          chunks: createGenericChunksFromText(document.content, source),
+          recordsFound: 1,
+          recordsIndexed: 1,
+        };
+
+    if (extracted.chunks.length === 0) {
+      throw new Error("Nao foi possivel extrair conteudo textual do documento.");
+    }
+
+    const embeddings = await createEmbeddings(
+      extracted.chunks.map((chunk) => chunk.searchText),
+      (current, total) => options?.onProgress?.({
+        phase: "embedding",
+        message: `Gerando embeddings (${current}/${total}).`,
+        document: document.fileName ?? document.title,
+        current,
+        total,
+      }),
+    );
+    const extractedContent = extracted.chunks.map((chunk) => chunk.content).join("\n\n");
+    const firstChunk = extracted.chunks[0];
+
+    await prisma.$transaction([
+      prisma.knowledgeChunk.deleteMany({ where: { documentId: document.id } }),
+      prisma.knowledgeChunk.createMany({
+        data: extracted.chunks.map((chunk, index) => ({
+          documentId: document.id,
+          chunkIndex: index,
+          content: chunk.content,
+          excerpt: chunk.excerpt,
+          searchText: chunk.searchText,
+          embedding: embeddings[index],
+          metadata: { source: chunk.source, chunkId: chunk.id },
+        })),
+      }),
+      prisma.knowledgeDocument.update({
+        where: { id: document.id },
+        data: {
+          content: extractedContent,
+          excerpt: firstChunk.excerpt,
+          contentHash: document.contentHash ?? extracted.checksum,
+          processingStatus: "READY",
+          processingError: null,
+          processedAt: new Date(),
+        },
+      }),
+    ]);
+
+    options?.onProgress?.({
+      phase: "document",
+      message: `Concluído com ${extracted.chunks.length} chunk(s).`,
+      document: document.fileName ?? document.title,
+    });
+
+    return { documentId: document.id, chunksIndexed: extracted.chunks.length, recordsFound: extracted.recordsFound, recordsIndexed: extracted.recordsIndexed };
+  } catch (error) {
+    const message = error instanceof Error ? error.message.slice(0, 500) : "Falha desconhecida no processamento.";
+    await prisma.knowledgeDocument.update({
+      where: { id: document.id },
+      data: { processingStatus: "ERROR", processingError: message, processedAt: null },
+    });
+    options?.onProgress?.({
+      phase: "document",
+      message: `Falhou: ${message}`,
+      document: document.fileName ?? document.title,
+    });
+    throw error;
+  }
+}
+
+
+async function readPersistentKnowledgeIndex(): Promise<KnowledgeIndex> {
+  if (!prisma) throw new Error("Banco de dados nao configurado.");
+  const chunks = await prisma.knowledgeChunk.findMany({
+    where: { document: { processingStatus: "READY" } },
+    include: { document: true },
+    orderBy: [{ documentId: "asc" }, { chunkIndex: "asc" }],
+  });
+  return {
+    version: 3,
+    generatedAt: new Date().toISOString(),
+    embeddingModel: OPENAI_EMBEDDING_MODEL,
+    knowledgeDirectory: "postgresql",
+    files: [],
+    chunks: chunks.flatMap((chunk) => {
+      if (!Array.isArray(chunk.embedding)) return [];
+      const source = typeof chunk.metadata === "object" && chunk.metadata && "source" in chunk.metadata
+        ? String((chunk.metadata as { source: unknown }).source)
+        : getPersistentSource(chunk.document);
+      return [{
+        id: chunk.id,
+        title: chunk.document.title,
+        excerpt: chunk.excerpt,
+        content: chunk.content,
+        category: chunk.document.category,
+        source,
+        searchText: chunk.searchText,
+        embedding: chunk.embedding as number[],
+      }];
+    }),
+  };
+}
+
+
 async function readKnowledgeIndex() {
+  if (prisma) {
+    return readPersistentKnowledgeIndex();
+  }
+
   try {
     const stats =
       await fs.stat(
@@ -2149,6 +2380,13 @@ async function readKnowledgeIndex() {
 
 
 export function getKnowledgePaths() {
+  if (prisma) {
+    return {
+      knowledgeDirectory: "postgresql",
+      indexFile: "postgresql:KnowledgeChunk",
+    };
+  }
+
   return {
     knowledgeDirectory:
       KNOWLEDGE_DIRECTORY,
@@ -2166,8 +2404,130 @@ export async function hasIndexedKnowledgeBase() {
 }
 
 
-export async function indexKnowledgeBase():
+async function indexPersistentKnowledgeBase(
+  options?: KnowledgeIndexingOptions,
+): Promise<KnowledgeIndexingResult> {
+  if (!prisma) throw new Error("Banco de dados nao configurado.");
+
+  const indexedFiles: IndexedFileSummary[] = [];
+  let chunksIndexed = 0;
+  let recordsFound = 0;
+  let recordsIndexed = 0;
+  let documentsImported = 0;
+  let documentsSkipped = 0;
+  let documentsWithError = 0;
+
+  // Existing Prisma documents predate persistent chunks. Process only records
+  // without chunks or records explicitly pending/error; READY records with
+  // chunks are never re-embedded by this incremental synchronisation.
+  const existingDocuments = await prisma.knowledgeDocument.findMany({
+    where: { origin: { not: "LEGACY_IMPORT" } },
+    include: { _count: { select: { chunks: true } } },
+  });
+  options?.onProgress?.({
+    phase: "database",
+    message: `Verificando ${existingDocuments.length} documento(s) já persistido(s).`,
+  });
+  for (const document of existingDocuments) {
+    if (document.processingStatus === "READY" && document._count.chunks > 0) continue;
+    try {
+      const result = await processPersistentKnowledgeDocument(document.id, options);
+      chunksIndexed += result.chunksIndexed;
+      recordsFound += result.recordsFound;
+      recordsIndexed += result.recordsIndexed;
+      documentsImported += 1;
+    } catch {
+      documentsWithError += 1;
+    }
+  }
+
+  // Files in /knowledge are an import source used by this explicit script only.
+  // They are never read by the production request path after import.
+  const knowledgeFiles = await listKnowledgeFiles();
+  options?.onProgress?.({
+    phase: "scan",
+    message: `${knowledgeFiles.length} arquivo(s) legado(s) encontrado(s).`,
+    total: knowledgeFiles.length,
+  });
+  for (const [fileIndex, filePath] of knowledgeFiles.entries()) {
+    const relativeSource = path.relative(KNOWLEDGE_DIRECTORY, filePath).replace(/\\/g, "/");
+    options?.onProgress?.({
+      phase: "document",
+      message: "Lendo e comparando hash.",
+      document: relativeSource,
+      current: fileIndex + 1,
+      total: knowledgeFiles.length,
+    });
+
+    try {
+      const fileData = await fs.readFile(filePath);
+      const contentHash = crypto.createHash("sha256").update(fileData).digest("hex");
+      const sourceKey = `legacy:${relativeSource}`;
+      const existing = await prisma.knowledgeDocument.findUnique({
+        where: { sourceKey },
+        include: { _count: { select: { chunks: true } } },
+      });
+
+      if (existing && existing.contentHash === contentHash && existing.processingStatus === "READY" && existing._count.chunks > 0) {
+        documentsSkipped += 1;
+        indexedFiles.push({ source: relativeSource, checksum: contentHash, chunks: existing._count.chunks, recordsFound: 0, recordsIndexed: 0 });
+        options?.onProgress?.({ phase: "document", message: "Ignorado: já está pronto e inalterado.", document: relativeSource, current: fileIndex + 1, total: knowledgeFiles.length });
+        continue;
+      }
+
+      const title = extractTitle("", relativeSource) || "Documento legado";
+      const category = inferCategory("", relativeSource);
+      const document = existing
+        ? await prisma.knowledgeDocument.update({
+            where: { id: existing.id },
+            data: { title, category, fileName: path.basename(relativeSource), mimeType: "application/octet-stream", fileSize: fileData.length, fileData, contentHash, processingStatus: "PENDING", processingError: null },
+          })
+        : await prisma.knowledgeDocument.create({
+            data: { title, slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "documento"}-${contentHash.slice(0, 8)}`, excerpt: "Documento legado aguardando processamento.", content: "", category, tags: [], origin: "LEGACY_IMPORT", processingStatus: "PENDING", sourceKey, contentHash, fileName: path.basename(relativeSource), mimeType: "application/octet-stream", fileSize: fileData.length, fileData },
+          });
+
+      const result = await processPersistentKnowledgeDocument(document.id, options);
+      documentsImported += 1;
+      chunksIndexed += result.chunksIndexed;
+      recordsFound += result.recordsFound;
+      recordsIndexed += result.recordsIndexed;
+      indexedFiles.push({ source: relativeSource, checksum: contentHash, chunks: result.chunksIndexed, recordsFound: result.recordsFound, recordsIndexed: result.recordsIndexed });
+    } catch (error) {
+      documentsWithError += 1;
+      const message = error instanceof Error ? error.message : "Falha desconhecida.";
+      options?.onProgress?.({ phase: "document", message: `Erro registrado; seguindo para o próximo: ${message}`, document: relativeSource, current: fileIndex + 1, total: knowledgeFiles.length });
+    }
+  }
+
+  return {
+    filesProcessed: indexedFiles.length,
+    chunksIndexed,
+    recordsFound,
+    recordsIndexed,
+    knowledgeDirectory: "postgresql",
+    indexFile: "postgresql:KnowledgeChunk",
+    files: indexedFiles,
+    documentsFound: knowledgeFiles.length,
+    documentsImported,
+    documentsSkipped,
+    documentsWithError,
+  };
+}
+
+
+export async function indexKnowledgeBase(
+  options?: KnowledgeIndexingOptions,
+):
 Promise<KnowledgeIndexingResult> {
+  if (prisma) {
+    const result = await indexPersistentKnowledgeBase(options);
+    options?.onProgress?.({
+      phase: "completed",
+      message: "Importação persistente concluída.",
+    });
+    return result;
+  }
+
   await ensureKnowledgeDirectory();
 
   const knowledgeFiles =
