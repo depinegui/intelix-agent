@@ -25,6 +25,23 @@ const adminCreateUserSchema = registerSchema.extend({
   role: z.enum(["ANALYST", "SPECIALIST"]),
 });
 
+const adminUpdateUserSchema = z.object({
+  name: z.string().min(2),
+  email: z.email(),
+  document: z.string().min(11),
+  phone: z.string().min(8),
+  companyType: z.enum(["FISICA", "JURIDICA"]),
+  role: z.enum(["ANALYST", "SPECIALIST"]),
+});
+
+const profileUpdateSchema = z.object({
+  name: z.string().min(2),
+  email: z.email(),
+  document: z.string().min(11),
+  phone: z.string().min(8),
+  companyType: z.enum(["FISICA", "JURIDICA"]),
+});
+
 const loginSchema = z.object({
   identifier: z.string().min(3),
   password: z.string().min(6),
@@ -251,6 +268,214 @@ export async function listUsers() {
       role: user.role,
       createdAt: user.createdAt,
     }));
+}
+
+export async function updateUserByAdmin(
+  targetUserId: string,
+  currentUserId: string,
+  input: {
+    name: string;
+    email: string;
+    document: string;
+    phone: string;
+    companyType: "FISICA" | "JURIDICA";
+    role: Extract<UserRole, "ANALYST" | "SPECIALIST">;
+  },
+) {
+  if (targetUserId === currentUserId) {
+    throw new Error(
+      "Use o perfil pessoal para alterar os dados da sua propria conta.",
+    );
+  }
+
+  const data = adminUpdateUserSchema.parse(input);
+
+  if (prisma) {
+    const targetUser = await prisma.user.findUnique({
+      where: {
+        id: targetUserId,
+      },
+      select: {
+        id: true,
+        role: true,
+      },
+    });
+
+    if (!targetUser) {
+      throw new Error("Usuario nao encontrado.");
+    }
+
+    if (targetUser.role === "ADMIN") {
+      throw new Error("Contas de administrador nao podem ser alteradas aqui.");
+    }
+
+    const duplicate = await prisma.user.findFirst({
+      where: {
+        id: {
+          not: targetUserId,
+        },
+        OR: [
+          {
+            email: data.email.toLowerCase(),
+          },
+          {
+            document: data.document,
+          },
+        ],
+      },
+    });
+
+    if (duplicate) {
+      throw new Error(
+        "Ja existe outra conta com este e-mail ou documento.",
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: targetUserId,
+      },
+      data: {
+        name: data.name,
+        email: data.email.toLowerCase(),
+        document: data.document,
+        phone: data.phone,
+        companyType: data.companyType,
+        role: data.role,
+      },
+    });
+
+    return toSessionUser(updatedUser);
+  }
+
+  const targetUser = demoStore.users.find(
+    (user) => user.id === targetUserId,
+  );
+
+  if (!targetUser) {
+    throw new Error("Usuario nao encontrado.");
+  }
+
+  if (targetUser.role === "ADMIN") {
+    throw new Error("Contas de administrador nao podem ser alteradas aqui.");
+  }
+
+  const duplicate = demoStore.users.find(
+    (user) =>
+      user.id !== targetUserId &&
+      (user.email.toLowerCase() === data.email.toLowerCase() ||
+        normalizeIdentifier(user.document) ===
+          normalizeIdentifier(data.document)),
+  );
+
+  if (duplicate) {
+    throw new Error(
+      "Ja existe outra conta com este e-mail ou documento.",
+    );
+  }
+
+  targetUser.name = data.name;
+  targetUser.email = data.email.toLowerCase();
+  targetUser.document = data.document;
+  targetUser.phone = data.phone;
+  targetUser.companyType = data.companyType;
+  targetUser.role = data.role;
+  targetUser.updatedAt = new Date().toISOString();
+
+  return toSessionUser(targetUser);
+}
+
+export async function updateOwnProfile(
+  currentUserId: string,
+  input: {
+    name: string;
+    email: string;
+    document: string;
+    phone: string;
+    companyType: "FISICA" | "JURIDICA";
+  },
+) {
+  const data = profileUpdateSchema.parse(input);
+
+  if (prisma) {
+    const currentUser = await prisma.user.findUnique({
+      where: {
+        id: currentUserId,
+      },
+    });
+
+    if (!currentUser) {
+      throw new Error("Usuario nao encontrado.");
+    }
+
+    const duplicate = await prisma.user.findFirst({
+      where: {
+        id: {
+          not: currentUserId,
+        },
+        OR: [
+          {
+            email: data.email.toLowerCase(),
+          },
+          {
+            document: data.document,
+          },
+        ],
+      },
+    });
+
+    if (duplicate) {
+      throw new Error(
+        "Ja existe outra conta com este e-mail ou documento.",
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: currentUserId,
+      },
+      data: {
+        name: data.name,
+        email: data.email.toLowerCase(),
+        document: data.document,
+        phone: data.phone,
+        companyType: data.companyType,
+      },
+    });
+
+    return toSessionUser(updatedUser);
+  }
+
+  const currentUser = demoStore.users.find(
+    (user) => user.id === currentUserId,
+  );
+
+  if (!currentUser) {
+    throw new Error("Usuario nao encontrado.");
+  }
+
+  const duplicate = demoStore.users.find(
+    (user) =>
+      user.id !== currentUserId &&
+      (user.email.toLowerCase() === data.email.toLowerCase() ||
+        normalizeIdentifier(user.document) ===
+          normalizeIdentifier(data.document)),
+  );
+
+  if (duplicate) {
+    throw new Error(
+      "Ja existe outra conta com este e-mail ou documento.",
+    );
+  }
+
+  currentUser.name = data.name;
+  currentUser.email = data.email.toLowerCase();
+  currentUser.document = data.document;
+  currentUser.phone = data.phone;
+  currentUser.companyType = data.companyType;
+  currentUser.updatedAt = new Date().toISOString();
+
+  return toSessionUser(currentUser);
 }
 
 export async function deleteUserByAdmin(

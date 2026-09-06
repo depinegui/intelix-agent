@@ -11,6 +11,7 @@ import {
   PlusSquare,
   Settings,
   Ticket,
+  UserRound,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -66,11 +67,17 @@ const navItems: Array<{
   },
   {
     href: "/configuracoes",
-    label: "Configuracoes",
+    label: "Configurações",
     icon: Settings,
     permission: "VIEW_SETTINGS",
   },
 ];
+
+const roleLabels: Record<SessionUser["role"], string> = {
+  ADMIN: "Administrador",
+  ANALYST: "Analista",
+  SPECIALIST: "Especialista",
+};
 
 interface AppShellProps {
   user: SessionUser;
@@ -79,7 +86,11 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-export function AppShell({ user, permissions, children }: AppShellProps) {
+export function AppShell({
+  user,
+  permissions,
+  children,
+}: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -96,11 +107,15 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
         method: "POST",
       });
 
-      toast.success("Sessao encerrada.");
+      toast.success("Sessão encerrada.");
       router.push("/login");
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao sair.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Falha ao sair.",
+      );
     } finally {
       setLoading(false);
     }
@@ -116,7 +131,8 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
             {visibleNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
-                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                (item.href !== "/dashboard" &&
+                  pathname.startsWith(item.href));
 
               return (
                 <Link
@@ -140,10 +156,10 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
             <div className="space-y-2">
               <p className="text-sm font-semibold text-white">
                 {user.name}
-                <span className="text-sidebar-foreground/52"> · </span>
-                <span className="text-xs font-semibold tracking-[0.08em] text-sidebar-foreground/72 uppercase">
-                  {user.role}
-                </span>
+              </p>
+
+              <p className="text-xs font-semibold tracking-[0.08em] text-sidebar-foreground/72 uppercase">
+                {roleLabels[user.role]}
               </p>
 
               <div className="flex items-center gap-2 text-xs font-medium text-sidebar-foreground/70">
@@ -155,10 +171,22 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
               </div>
             </div>
 
+            <Link
+              href="/perfil"
+              className={cn(
+                "flex h-10 items-center justify-center gap-2 rounded-lg border border-white/12 bg-white/7 px-4 text-sm font-medium text-white transition-colors hover:bg-white/12",
+                pathname === "/perfil" &&
+                  "bg-white/12 ring-1 ring-white/10",
+              )}
+            >
+              <UserRound className="size-4" />
+              Meu Perfil
+            </Link>
+
             <Button
               variant="outline"
               size="lg"
-              className="h-10 rounded-lg border-white/12 bg-white/7 text-white hover:bg-white/12"
+              className="h-10 w-full rounded-lg border-white/12 bg-white/7 text-white hover:bg-white/12"
               disabled={loading}
               onClick={handleLogout}
             >
@@ -173,15 +201,29 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
             <div className="flex items-center justify-between gap-4">
               <BrandMark compact />
 
-              <Button
-                variant="outline"
-                className="rounded-lg"
-                onClick={handleLogout}
-                disabled={loading}
-              >
-                <LogOut className="size-4" />
-                Sair
-              </Button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/perfil"
+                  className={cn(
+                    "flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted",
+                    pathname === "/perfil" &&
+                      "bg-muted",
+                  )}
+                >
+                  <UserRound className="size-4" />
+                  Perfil
+                </Link>
+
+                <Button
+                  variant="outline"
+                  className="rounded-lg"
+                  onClick={handleLogout}
+                  disabled={loading}
+                >
+                  <LogOut className="size-4" />
+                  Sair
+                </Button>
+              </div>
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -221,26 +263,48 @@ export function AppShell({ user, permissions, children }: AppShellProps) {
               </p>
             </div>
 
-            <div className="flex flex-col items-start gap-2 md:items-end">
-              <p className="text-sm font-semibold text-foreground">
-                {user.name}
-                <span className="text-muted-foreground/60"> · </span>
-                <span className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                  {user.role}
-                </span>
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-start gap-1 md:items-end">
+                <p className="text-sm font-semibold text-foreground">
+                  {user.name}
+                </p>
 
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <span
-                  className="size-1.5 rounded-full bg-primary"
-                  aria-hidden="true"
-                />
-                Online
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                    {roleLabels[user.role]}
+                  </span>
+
+                  <span className="text-muted-foreground/40">
+                    ·
+                  </span>
+
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <span
+                      className="size-1.5 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                    Online
+                  </span>
+                </div>
               </div>
+
+              <Link
+                href="/perfil"
+                title="Meu Perfil"
+                className={cn(
+                  "flex size-10 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                  pathname === "/perfil" &&
+                    "bg-primary/10 text-primary",
+                )}
+              >
+                <UserRound className="size-5" />
+              </Link>
             </div>
           </header>
 
-          <div className="min-h-[50vh]">{children}</div>
+          <div className="min-h-[50vh]">
+            {children}
+          </div>
         </div>
       </div>
     </div>

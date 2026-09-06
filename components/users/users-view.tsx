@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  Pencil,
   Plus,
   ShieldCheck,
   Trash2,
@@ -55,9 +56,14 @@ const roleLabels: Record<UserRole, string> = {
 export function UsersView() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
+  const [updating, setUpdating] = useState(false);
+
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -67,6 +73,15 @@ export function UsersView() {
   const [companyType, setCompanyType] =
     useState<CompanyType>("FISICA");
   const [role, setRole] =
+    useState<"ANALYST" | "SPECIALIST">("ANALYST");
+
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editDocument, setEditDocument] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editCompanyType, setEditCompanyType] =
+    useState<CompanyType>("FISICA");
+  const [editRole, setEditRole] =
     useState<"ANALYST" | "SPECIALIST">("ANALYST");
 
   async function loadUsers() {
@@ -92,7 +107,7 @@ export function UsersView() {
     void loadUsers();
   }, []);
 
-  function clearForm() {
+  function clearCreateForm() {
     setName("");
     setEmail("");
     setDocument("");
@@ -100,6 +115,28 @@ export function UsersView() {
     setPassword("");
     setCompanyType("FISICA");
     setRole("ANALYST");
+  }
+
+  function openEditUser(user: UserRecord) {
+    if (user.role === "ADMIN") {
+      return;
+    }
+
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditEmail(user.email);
+    setEditDocument(user.document);
+    setEditPhone(user.phone);
+    setEditCompanyType(user.companyType);
+    setEditRole(user.role);
+  }
+
+  function closeEditUser() {
+    if (updating) {
+      return;
+    }
+
+    setEditingUser(null);
   }
 
   async function handleCreateUser(
@@ -123,8 +160,9 @@ export function UsersView() {
       });
 
       toast.success("Usuario criado com sucesso.");
-      clearForm();
-      setOpen(false);
+      clearCreateForm();
+      setCreateOpen(false);
+
       await loadUsers();
     } catch (error) {
       toast.error(
@@ -134,6 +172,45 @@ export function UsersView() {
       );
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleUpdateUser(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!editingUser) {
+      return;
+    }
+
+    setUpdating(true);
+
+    try {
+      await apiRequest(`/api/admin/users/${editingUser.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: editName,
+          email: editEmail,
+          document: editDocument,
+          phone: editPhone,
+          companyType: editCompanyType,
+          role: editRole,
+        }),
+      });
+
+      toast.success("Usuario atualizado com sucesso.");
+      setEditingUser(null);
+
+      await loadUsers();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel atualizar o usuario.",
+      );
+    } finally {
+      setUpdating(false);
     }
   }
 
@@ -188,17 +265,20 @@ export function UsersView() {
           </p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger>
-            <Button>
-              <Plus className="size-4" />
-              Novo usuário
-            </Button>
+        <Dialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+        >
+          <DialogTrigger className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+            <Plus className="size-4" />
+            Novo usuário
           </DialogTrigger>
 
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
             <DialogHeader>
-              <DialogTitle>Criar usuário</DialogTitle>
+              <DialogTitle>
+                Criar usuário
+              </DialogTitle>
 
               <DialogDescription>
                 Cadastre uma conta para acesso ao Intelix Agent.
@@ -210,7 +290,9 @@ export function UsersView() {
               onSubmit={handleCreateUser}
             >
               <div className="space-y-2">
-                <Label htmlFor="user-name">Nome</Label>
+                <Label htmlFor="user-name">
+                  Nome
+                </Label>
 
                 <Input
                   id="user-name"
@@ -279,7 +361,9 @@ export function UsersView() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Tipo de pessoa</Label>
+                  <Label>
+                    Tipo de pessoa
+                  </Label>
 
                   <Select
                     value={companyType}
@@ -306,7 +390,9 @@ export function UsersView() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Perfil</Label>
+                  <Label>
+                    Perfil
+                  </Label>
 
                   <Select
                     value={role}
@@ -358,7 +444,9 @@ export function UsersView() {
                   type="button"
                   variant="outline"
                   disabled={creating}
-                  onClick={() => setOpen(false)}
+                  onClick={() =>
+                    setCreateOpen(false)
+                  }
                 >
                   Cancelar
                 </Button>
@@ -377,6 +465,184 @@ export function UsersView() {
         </Dialog>
       </div>
 
+      <Dialog
+        open={editingUser !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            closeEditUser();
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>
+              Editar usuário
+            </DialogTitle>
+
+            <DialogDescription>
+              Atualize os dados cadastrais e o perfil de acesso deste usuário.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            className="space-y-4"
+            onSubmit={handleUpdateUser}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="edit-user-name">
+                Nome
+              </Label>
+
+              <Input
+                id="edit-user-name"
+                value={editName}
+                onChange={(event) =>
+                  setEditName(event.target.value)
+                }
+                required
+                minLength={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-user-email">
+                E-mail
+              </Label>
+
+              <Input
+                id="edit-user-email"
+                type="email"
+                value={editEmail}
+                onChange={(event) =>
+                  setEditEmail(event.target.value)
+                }
+                required
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-document">
+                  CPF / CNPJ
+                </Label>
+
+                <Input
+                  id="edit-user-document"
+                  value={editDocument}
+                  onChange={(event) =>
+                    setEditDocument(event.target.value)
+                  }
+                  required
+                  minLength={11}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-phone">
+                  Telefone
+                </Label>
+
+                <Input
+                  id="edit-user-phone"
+                  value={editPhone}
+                  onChange={(event) =>
+                    setEditPhone(event.target.value)
+                  }
+                  required
+                  minLength={8}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>
+                  Tipo de pessoa
+                </Label>
+
+                <Select
+                  value={editCompanyType}
+                  onValueChange={(value) =>
+                    setEditCompanyType(
+                      value as CompanyType,
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="FISICA">
+                      Pessoa Física
+                    </SelectItem>
+
+                    <SelectItem value="JURIDICA">
+                      Pessoa Jurídica
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  Perfil
+                </Label>
+
+                <Select
+                  value={editRole}
+                  onValueChange={(value) =>
+                    setEditRole(
+                      value as
+                        | "ANALYST"
+                        | "SPECIALIST",
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="ANALYST">
+                      Analista
+                    </SelectItem>
+
+                    <SelectItem value="SPECIALIST">
+                      Especialista
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <p className="text-xs leading-5 text-muted-foreground">
+              A senha deste usuário não é alterada por esta edição.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updating}
+                onClick={closeEditUser}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="submit"
+                disabled={updating}
+              >
+                {updating
+                  ? "Salvando..."
+                  : "Salvar alterações"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-5 md:p-6">
         {loading ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
@@ -388,7 +654,7 @@ export function UsersView() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-[950px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border/70 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">
                   <th className="px-3 py-3">
@@ -464,30 +730,50 @@ export function UsersView() {
                       )}
                     </td>
 
-                    <td className="px-3 py-4 text-right">
+                    <td className="px-3 py-4">
                       {user.role === "ADMIN" ? (
-                        <span className="text-xs text-muted-foreground">
-                          Protegido
-                        </span>
+                        <div className="text-right">
+                          <span className="text-xs text-muted-foreground">
+                            Protegido
+                          </span>
+                        </div>
                       ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={
-                            deletingUserId === user.id
-                          }
-                          onClick={() =>
-                            void handleDeleteUser(user)
-                          }
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="size-4" />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              openEditUser(user)
+                            }
+                          >
+                            <Pencil className="size-4" />
+                            Editar
+                          </Button>
 
-                          {deletingUserId === user.id
-                            ? "Removendo..."
-                            : "Remover"}
-                        </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={
+                              deletingUserId ===
+                              user.id
+                            }
+                            onClick={() =>
+                              void handleDeleteUser(
+                                user,
+                              )
+                            }
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="size-4" />
+
+                            {deletingUserId ===
+                            user.id
+                              ? "Removendo..."
+                              : "Remover"}
+                          </Button>
+                        </div>
                       )}
                     </td>
                   </tr>
