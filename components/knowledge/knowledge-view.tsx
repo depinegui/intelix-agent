@@ -1,7 +1,14 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Edit3, Plus, Search, Trash2 } from "lucide-react";
+import {
+  Edit3,
+  FileUp,
+  LoaderCircle,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { apiRequest } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +55,8 @@ const knowledgeCategories = [
   "PROCEDIMENTOS",
 ] as const;
 
+type KnowledgeCategory = (typeof knowledgeCategories)[number];
+
 interface KnowledgeViewProps {
   initialDocuments: KnowledgeDocument[];
   stats: KnowledgeOverviewStats;
@@ -71,19 +80,32 @@ export function KnowledgeView({
 }: KnowledgeViewProps) {
   const [documents, setDocuments] = useState(initialDocuments);
   const [search, setSearch] = useState("");
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<KnowledgeInput>(emptyForm);
   const [tagInput, setTagInput] = useState("");
 
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadCategory, setUploadCategory] =
+    useState<KnowledgeCategory>("PROCEDIMENTOS");
+  const [uploading, setUploading] = useState(false);
+
   const deferredSearch = useDeferredValue(search);
+
   const filteredDocuments = useMemo(() => {
     return documents.filter((document) => {
-      const haystack = `${document.title} ${document.excerpt} ${document.content} ${document.tags.join(" ")}`.toLowerCase();
+      const haystack =
+        `${document.title} ${document.excerpt} ${document.content} ${document.tags.join(
+          " ",
+        )}`.toLowerCase();
+
       return haystack.includes(deferredSearch.toLowerCase());
     });
   }, [deferredSearch, documents]);
+
   const highlights = useMemo(
     () => getKnowledgeHighlights(documents),
     [documents],
@@ -98,6 +120,7 @@ export function KnowledgeView({
 
   function openEditDialog(document: KnowledgeDocument) {
     setEditingId(document.id);
+
     setForm({
       title: document.title,
       excerpt: document.excerpt,
@@ -105,12 +128,20 @@ export function KnowledgeView({
       category: document.category,
       tags: document.tags,
     });
+
     setTagInput(document.tags.join(", "));
     setDialogOpen(true);
   }
 
+  function openUploadDialog() {
+    setUploadFile(null);
+    setUploadCategory("PROCEDIMENTOS");
+    setUploadDialogOpen(true);
+  }
+
   async function handleSubmit() {
     setLoading(true);
+
     const payload: KnowledgeInput = {
       ...form,
       tags: tagInput
@@ -134,6 +165,7 @@ export function KnowledgeView({
             item.id === response.document.id ? response.document : item,
           ),
         );
+
         toast.success("Documento atualizado.");
       } else {
         const response = await apiRequest<{ document: KnowledgeDocument }>(
@@ -145,16 +177,61 @@ export function KnowledgeView({
         );
 
         setDocuments((current) => [response.document, ...current]);
+
         toast.success("Documento criado.");
       }
 
       setDialogOpen(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Falha ao salvar documento.",
+        error instanceof Error
+          ? error.message
+          : "Falha ao salvar documento.",
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUpload() {
+    if (!uploadFile) {
+      toast.error("Selecione um arquivo para enviar.");
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+
+      formData.append("file", uploadFile);
+      formData.append("category", uploadCategory);
+
+      const response = await apiRequest<{
+        message: string;
+        file: {
+          name: string;
+          storedFileName: string;
+          category: string;
+          size: number;
+        };
+      }>("/api/knowledge/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      toast.success(response.message);
+
+      setUploadFile(null);
+      setUploadDialogOpen(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel enviar o arquivo.",
+      );
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -167,11 +244,17 @@ export function KnowledgeView({
       await apiRequest(`/api/knowledge/${id}`, {
         method: "DELETE",
       });
-      setDocuments((current) => current.filter((document) => document.id !== id));
+
+      setDocuments((current) =>
+        current.filter((document) => document.id !== id),
+      );
+
       toast.success("Documento removido.");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Falha ao remover documento.",
+        error instanceof Error
+          ? error.message
+          : "Falha ao remover documento.",
       );
     }
   }
@@ -182,23 +265,34 @@ export function KnowledgeView({
         <section className="grid gap-3 md:grid-cols-3">
           <Card className="border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)]">
             <CardHeader className="px-4 pt-4">
-              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Documentos disponíveis</CardDescription>
+              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">
+                Documentos disponíveis
+              </CardDescription>
+
               <CardTitle className="text-3xl font-semibold">
                 {documents.length}
               </CardTitle>
             </CardHeader>
           </Card>
+
           <Card className="border-border/80 shadow-sm">
             <CardHeader className="px-4 pt-4">
-              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Qualidade das respostas</CardDescription>
+              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">
+                Qualidade das respostas
+              </CardDescription>
+
               <CardTitle className="text-3xl font-semibold">
                 {stats.ragAccuracy}
               </CardTitle>
             </CardHeader>
           </Card>
+
           <Card className="border-border/80 shadow-sm">
             <CardHeader className="px-4 pt-4">
-              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Tempo de resposta</CardDescription>
+              <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">
+                Tempo de resposta
+              </CardDescription>
+
               <CardTitle className="text-3xl font-semibold">
                 {stats.averageResponse}
               </CardTitle>
@@ -210,6 +304,7 @@ export function KnowledgeView({
           <div className="mb-5 flex flex-col gap-3 border-b border-border/70 pb-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="relative w-full xl:max-w-xl">
               <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -217,11 +312,30 @@ export function KnowledgeView({
                 placeholder="Buscar na base de conhecimento..."
               />
             </div>
+
             {canManage ? (
-              <Button onClick={openCreateDialog} size="lg" className="h-10 rounded-lg px-5">
-                <Plus className="size-4" />
-                Novo documento
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-10 rounded-lg px-5"
+                  onClick={openUploadDialog}
+                >
+                  <FileUp className="size-4" />
+                  Enviar arquivo
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={openCreateDialog}
+                  size="lg"
+                  className="h-10 rounded-lg px-5"
+                >
+                  <Plus className="size-4" />
+                  Novo documento
+                </Button>
+              </div>
             ) : null}
           </div>
 
@@ -229,19 +343,24 @@ export function KnowledgeView({
             {highlights.map((highlight) => (
               <div
                 key={highlight.category}
-              className="rounded-lg border border-border/70 bg-muted/30 p-4"
+                className="rounded-lg border border-border/70 bg-muted/30 p-4"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-base font-semibold text-foreground">
                       {highlight.label}
                     </p>
+
                     <p className="text-sm text-muted-foreground">
                       {highlight.documents} docs
                     </p>
                   </div>
-                  <Badge variant="secondary">{highlight.documents}</Badge>
+
+                  <Badge variant="secondary">
+                    {highlight.documents}
+                  </Badge>
                 </div>
+
                 <div className="mt-4 flex flex-wrap gap-2">
                   {highlight.items.map((item) => (
                     <span
@@ -269,17 +388,23 @@ export function KnowledgeView({
                     <CardDescription>
                       {categoryLabels[document.category]}
                     </CardDescription>
+
                     <CardTitle className="mt-1 text-xl font-semibold">
                       {document.title}
                     </CardTitle>
                   </div>
-                  <Badge variant="secondary">{document.views} views</Badge>
+
+                  <Badge variant="secondary">
+                    {document.views} views
+                  </Badge>
                 </div>
               </CardHeader>
+
               <CardContent className="space-y-3 px-4 pb-4">
                 <p className="text-sm leading-6 text-muted-foreground">
                   {document.excerpt}
                 </p>
+
                 <div className="flex flex-wrap gap-2">
                   {document.tags.map((tag) => (
                     <span
@@ -290,8 +415,10 @@ export function KnowledgeView({
                     </span>
                   ))}
                 </div>
+
                 <div className="flex items-center justify-between gap-3 pt-2 text-sm text-muted-foreground">
                   <span>{formatShortDate(document.updatedAt)}</span>
+
                   {canManage || canDelete ? (
                     <div className="flex gap-2">
                       {canManage ? (
@@ -303,6 +430,7 @@ export function KnowledgeView({
                           <Edit3 className="size-4" />
                         </Button>
                       ) : null}
+
                       {canDelete ? (
                         <Button
                           variant="outline"
@@ -327,25 +455,33 @@ export function KnowledgeView({
             <DialogTitle>
               {editingId ? "Editar documento" : "Novo documento"}
             </DialogTitle>
+
             <DialogDescription>
               O cadastro organiza esta base. A disponibilidade no assistente
               pode depender de atualização administrativa.
             </DialogDescription>
           </DialogHeader>
+
           <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="knowledge-title">Titulo</Label>
+
               <Input
                 id="knowledge-title"
                 value={form.title}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, title: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))
                 }
                 className="h-10 rounded-lg"
               />
             </div>
+
             <div className="space-y-2">
               <Label>Categoria</Label>
+
               <Select
                 value={form.category}
                 onValueChange={(value) =>
@@ -358,6 +494,7 @@ export function KnowledgeView({
                 <SelectTrigger className="h-10 w-full rounded-lg">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
+
                 <SelectContent>
                   {knowledgeCategories.map((category) => (
                     <SelectItem key={category} value={category}>
@@ -367,8 +504,10 @@ export function KnowledgeView({
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="knowledge-tags">Tags</Label>
+
               <Input
                 id="knowledge-tags"
                 value={tagInput}
@@ -377,37 +516,165 @@ export function KnowledgeView({
                 placeholder="nf-e, sefaz, duplicidade"
               />
             </div>
+
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="knowledge-excerpt">Resumo</Label>
+
               <Textarea
                 id="knowledge-excerpt"
                 rows={3}
                 value={form.excerpt}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, excerpt: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    excerpt: event.target.value,
+                  }))
                 }
                 className="rounded-lg"
               />
             </div>
+
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="knowledge-content">Conteudo</Label>
+
               <Textarea
                 id="knowledge-content"
                 rows={10}
                 value={form.content}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, content: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    content: event.target.value,
+                  }))
                 }
                 className="rounded-lg"
               />
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+            >
               Cancelar
             </Button>
+
             <Button onClick={handleSubmit} disabled={loading}>
               {loading ? "Salvando..." : "Salvar documento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={uploadDialogOpen}
+        onOpenChange={(open) => {
+          if (!uploading) {
+            setUploadDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl rounded-xl p-0">
+          <DialogHeader className="border-b border-border/70 px-5 py-4">
+            <DialogTitle>Enviar arquivo</DialogTitle>
+
+            <DialogDescription>
+              Adicione um arquivo à base de conhecimento. Após o envio, o
+              Intelix reindexará a base para disponibilizar o novo conteúdo ao
+              agente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-5 px-5 py-5">
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+
+              <Select
+                value={uploadCategory}
+                onValueChange={(value) =>
+                  setUploadCategory(value as KnowledgeCategory)
+                }
+                disabled={uploading}
+              >
+                <SelectTrigger className="h-10 w-full rounded-lg">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {knowledgeCategories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {categoryLabels[category]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="knowledge-file">Arquivo</Label>
+
+              <Input
+                id="knowledge-file"
+                type="file"
+                accept=".txt,.md,.pdf,.docx,.csv,.xlsx"
+                disabled={uploading}
+                onChange={(event) =>
+                  setUploadFile(event.target.files?.[0] ?? null)
+                }
+                className="h-11 cursor-pointer rounded-lg"
+              />
+
+              <p className="text-xs leading-5 text-muted-foreground">
+                Formatos aceitos: TXT, MD, PDF, DOCX, CSV e XLSX. Tamanho
+                máximo: 15 MB.
+              </p>
+            </div>
+
+            {uploadFile ? (
+              <div className="rounded-lg border border-border/70 bg-muted/30 p-3">
+                <p className="text-sm font-medium text-foreground">
+                  {uploadFile.name}
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            ) : null}
+
+            {uploading ? (
+              <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/30 p-3 text-sm text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin" />
+                Enviando arquivo e reindexando a base...
+              </div>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setUploadDialogOpen(false)}
+              disabled={uploading}
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              onClick={handleUpload}
+              disabled={uploading || !uploadFile}
+            >
+              {uploading ? (
+                <>
+                  <LoaderCircle className="size-4 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <FileUp className="size-4" />
+                  Enviar arquivo
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
