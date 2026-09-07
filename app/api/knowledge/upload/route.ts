@@ -26,7 +26,11 @@ const KNOWLEDGE_CATEGORIES = new Set([
   "PROCEDIMENTOS",
 ]);
 
-const MAX_FILE_SIZE = 15 * 1024 * 1024;
+// Vercel Functions rejeitam request bodies acima de 4,5 MB antes que a rota
+// seja executada. Mantemos 15 MB nos demais ambientes e uma margem segura de
+// 4 MB em deploys Vercel, sem aceitar uploads que a plataforma nao receberia.
+const MAX_FILE_SIZE_MB = process.env.VERCEL === "1" ? 4 : 15;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const MIME_TYPES_BY_EXTENSION: Record<string, string[]> = {
   ".txt": ["text/plain"],
@@ -123,7 +127,7 @@ export async function POST(request: Request) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { message: "O arquivo deve ter no maximo 15 MB." },
+        { message: `O arquivo deve ter no maximo ${MAX_FILE_SIZE_MB} MB neste ambiente.` },
         { status: 400 },
       );
     }

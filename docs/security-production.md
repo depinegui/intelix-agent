@@ -29,6 +29,13 @@ banco de destino, portanto não deve ser usado em homologação com dados reais.
 
 ## Limites atuais
 
+> Em Vercel, o limite efetivo de upload e 4 MB, pois a plataforma limita o
+> corpo de uma Function a 4,5 MB. Confirme que as System Environment Variables
+> estejam expostas para que `VERCEL=1` seja definido. Para preservar uploads de
+> 15 MB na Vercel, a proxima evolucao devera usar upload direto para um
+> armazenamento de objetos; isso exige decidir e configurar o provedor antes de
+> implementar.
+
 Uploads administrativos aceitam TXT, MD, PDF, DOCX, CSV e XLSX até 15 MB,
 validam extensão, MIME e assinatura básica quando aplicável, e ficam no banco
 sem rota pública de download. A recuperação de senha está deliberadamente

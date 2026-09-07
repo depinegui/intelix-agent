@@ -662,7 +662,7 @@ export function KnowledgeView({
 
               <p className="text-xs leading-5 text-muted-foreground">
                 Formatos aceitos: TXT, MD, PDF, DOCX, CSV e XLSX. Tamanho
-                máximo: 15 MB.
+                máximo: 15 MB (4 MB em deploys Vercel).
               </p>
             </div>
 

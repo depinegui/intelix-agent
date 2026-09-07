@@ -25,4 +25,4 @@ O script historico `sync-knowledge.ts` continua disponivel somente para preparar
 
 - Nenhuma variavel nova e obrigatoria alem de `DATABASE_URL` e `OPENAI_API_KEY` existentes.
 - `pgvector` nao e requisito desta versao: embeddings sao persistidos em JSONB e comparados pela mesma logica de cosine similarity ja usada pelo projeto. Se a escala exigir busca vetorial SQL, habilite `pgvector` no Neon e migre a coluna `embedding` sem mudar o contrato de documentos/chunks.
-- O upload requer `MANAGE_KNOWLEDGE`, aceita apenas TXT, MD, PDF, DOCX, CSV e XLSX de ate 15 MB, valida extensao/MIME, sanitiza o nome e nunca expoe caminho interno.
+- O upload requer `MANAGE_KNOWLEDGE`, aceita apenas TXT, MD, PDF, DOCX, CSV e XLSX de ate 15 MB, valida extensao/MIME, sanitiza o nome e nunca expoe caminho interno. Em deploys Vercel, o limite efetivo e 4 MB: a plataforma limita o corpo da Function a 4,5 MB. Para arquivos maiores, sera necessario adotar upload direto para armazenamento de objetos antes da Function.
