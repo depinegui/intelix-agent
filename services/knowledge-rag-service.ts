@@ -1840,6 +1840,88 @@ async function extractRawTextFromFile(
 }
 
 
+async function extractRawTextFromPdfBuffer(
+  fileBuffer: Buffer,
+) {
+  const {
+    default: PDFParser,
+  } =
+    await import(
+      "pdf2json"
+    );
+
+  // pdf2json reads from the beginning of the underlying ArrayBuffer. Database
+  // buffers may be pooled views, so retain the document in memory while giving
+  // the parser a dedicated buffer with byteOffset zero.
+  const parserBuffer =
+    Buffer.allocUnsafeSlow(
+      fileBuffer.length,
+    );
+
+  fileBuffer.copy(
+    parserBuffer,
+  );
+
+  return new Promise<string>(
+    (
+      resolve,
+      reject,
+    ) => {
+      const parser =
+        new PDFParser(
+          null,
+          true,
+        );
+
+      const cleanup = () => {
+        parser.removeAllListeners();
+        parser.destroy();
+      };
+
+      parser.once(
+        "pdfParser_dataReady",
+        () => {
+          try {
+            const text =
+              parser.getRawTextContent();
+
+            cleanup();
+            resolve(text);
+          } catch (error) {
+            cleanup();
+            reject(error);
+          }
+        },
+      );
+
+      parser.once(
+        "pdfParser_dataError",
+        (
+          error,
+        ) => {
+          cleanup();
+
+          reject(
+            error instanceof Error
+              ? error
+              : error.parserError,
+          );
+        },
+      );
+
+      try {
+        parser.parseBuffer(
+          parserBuffer,
+        );
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    },
+  );
+}
+
+
 async function extractRawTextFromBuffer(
   fileBuffer: Buffer,
   extension: string,
@@ -1851,25 +1933,10 @@ async function extractRawTextFromBuffer(
   if (
     extension === ".pdf"
   ) {
-    const {
-      PDFParse,
-    } =
-      await import(
-        "pdf-parse"
-      );
-
-    const parser =
-      new PDFParse({
-        data: fileBuffer,
-      });
-
-    const result =
-      await parser.getText();
-
-    await parser.destroy();
-
     return normalizeWhitespace(
-      result.text,
+      await extractRawTextFromPdfBuffer(
+        fileBuffer,
+      ),
     );
   }
 
