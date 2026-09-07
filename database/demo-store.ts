@@ -26,7 +26,12 @@ function buildProtocol(sequence: number) {
   return `INT-${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${sequence}`;
 }
 
-const demoPasswordHash = hashSync("Intelix@2026", 10);
+// Credenciais de demonstracao devem ser fornecidas apenas no ambiente local.
+// Sem a variavel, a conta de demo nao e acessivel por uma senha conhecida.
+const demoPasswordHash = hashSync(
+  process.env.INTELIX_DEMO_PASSWORD ?? crypto.randomUUID(),
+  10,
+);
 
 export const knowledgeHighlights: KnowledgeHighlight[] = [
   {

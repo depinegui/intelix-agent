@@ -83,6 +83,10 @@ enum AuditAction {
   DELETE
   STATUS_CHANGE
   FEEDBACK
+  LOGIN
+  UPLOAD
+  PROCESS
+  ESCALATE
 }
 
 enum AuditEntityType {

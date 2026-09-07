@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import { safeRouteError } from "@/lib/api-error";
 import { hasPermission } from "@/lib/permissions";
 import { createAuditLogSafely } from "@/services/audit-service";
 import { escalateChatMessageToTicket } from "@/services/chat-service";
@@ -18,15 +19,15 @@ export async function POST(
     if (result.created) {
       await createAuditLogSafely({
         user,
-        action: "CREATE",
+        action: "ESCALATE",
         entityType: "TICKET",
         entityId: result.ticket.id,
         description: "Chamado escalado pelo Intelix Agent para atendimento humano.",
-        metadata: { event: "TICKET_ESCALATION", protocol: result.ticket.protocol, category: result.ticket.category },
+        metadata: { protocol: result.ticket.protocol, category: result.ticket.category },
       });
     }
     return NextResponse.json(result, { status: result.created ? 201 : 200 });
   } catch (error) {
-    return NextResponse.json({ message: error instanceof Error ? error.message : "Nao foi possivel encaminhar para atendimento." }, { status: 400 });
+    return NextResponse.json({ message: safeRouteError(error, "Nao foi possivel encaminhar para atendimento.") }, { status: 400 });
   }
 }

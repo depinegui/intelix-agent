@@ -1,6 +1,7 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import { safeRouteError } from "@/lib/api-error";
 import { hasPermission } from "@/lib/permissions";
 import { createAuditLogSafely } from "@/services/audit-service";
 import { createUploadedKnowledgeDocument } from "@/services/knowledge-service";
@@ -35,6 +36,20 @@ const MIME_TYPES_BY_EXTENSION: Record<string, string[]> = {
   ".csv": ["text/csv", "application/csv", "text/plain"],
   ".xlsx": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
 };
+
+function hasExpectedFileSignature(extension: string, buffer: Buffer) {
+  if (extension === ".pdf") {
+    return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+  }
+
+  // DOCX e XLSX sao pacotes ZIP. A extensao e o MIME tambem sao validados
+  // antes do processamento; a verificacao evita aceitar binarios arbitrarios.
+  if (extension === ".docx" || extension === ".xlsx") {
+    return buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+  }
+
+  return true;
+}
 
 function sanitizeFileName(fileName: string) {
   const extension = path.extname(fileName).toLowerCase();
@@ -113,9 +128,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const safeFileName = sanitizeFileName(file.name);
+    if (file.type && !MIME_TYPES_BY_EXTENSION[extension].includes(file.type)) {
+      return NextResponse.json(
+        { message: "O tipo MIME do arquivo nao corresponde ao formato informado." },
+        { status: 400 },
+      );
+    }
 
+    const safeFileName = sanitizeFileName(file.name);
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    if (!hasExpectedFileSignature(extension, buffer)) {
+      return NextResponse.json(
+        { message: "O conteudo do arquivo nao corresponde ao formato informado." },
+        { status: 400 },
+      );
+    }
     const result = await createUploadedKnowledgeDocument({
       fileName: safeFileName,
       mimeType: file.type || "application/octet-stream",
@@ -129,12 +157,11 @@ export async function POST(request: Request) {
 
     await createAuditLogSafely({
       user,
-      action: processingFailed ? "UPDATE" : "CREATE",
+      action: "UPLOAD",
       entityType: "KNOWLEDGE_DOCUMENT",
       entityId: result.document.id,
       description: "Arquivo enviado para a base de conhecimento.",
       metadata: {
-        event: "KNOWLEDGE_UPLOAD",
         fileName: safeFileName,
         category,
         size: file.size,
@@ -145,12 +172,11 @@ export async function POST(request: Request) {
     if (processingFailed) {
       await createAuditLogSafely({
         user,
-        action: "UPDATE",
+        action: "PROCESS",
         entityType: "KNOWLEDGE_DOCUMENT",
         entityId: result.document.id,
         description: "Falha ao processar arquivo enviado para a base de conhecimento.",
         metadata: {
-          event: "KNOWLEDGE_PROCESSING_FAILED",
           category,
           fileName: safeFileName,
         },
@@ -158,22 +184,14 @@ export async function POST(request: Request) {
     } else if (result.created) {
       await createAuditLogSafely({
         user,
-        action: "UPDATE",
+        action: "PROCESS",
         entityType: "KNOWLEDGE_DOCUMENT",
         entityId: result.document.id,
         description: "Processamento do documento da base concluido.",
         metadata: {
-          event: "KNOWLEDGE_PROCESSING_COMPLETED",
           chunksIndexed: result.document.processingStatus === "READY",
         },
       });
-    }
-
-    if (file.type && !MIME_TYPES_BY_EXTENSION[extension].includes(file.type)) {
-      return NextResponse.json(
-        { message: "O tipo MIME do arquivo nao corresponde ao formato informado." },
-        { status: 400 },
-      );
     }
 
     return NextResponse.json(
@@ -192,10 +210,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel enviar o arquivo.",
+        message: safeRouteError(error, "Nao foi possivel enviar o arquivo."),
       },
       { status: 400 },
     );

@@ -10,6 +10,14 @@ import {
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("O seed de demonstracao nao pode ser executado em producao.");
+  }
+
+  if (!process.env.INTELIX_DEMO_PASSWORD) {
+    throw new Error("Defina INTELIX_DEMO_PASSWORD antes de executar o seed local.");
+  }
+
   await prisma.chatMessage.deleteMany();
   await prisma.chatConversation.deleteMany();
   await prisma.ticketHistory.deleteMany();

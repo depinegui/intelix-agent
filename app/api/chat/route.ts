@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/session";
+import { safeRouteError } from "@/lib/api-error";
 import { hasPermission } from "@/lib/permissions";
 import { sendChatMessage } from "@/services/chat-service";
 
@@ -8,7 +9,7 @@ export const runtime = "nodejs";
 
 const chatSchema = z.object({
   conversationId: z.string().optional(),
-  message: z.string().min(1),
+  message: z.string().trim().min(1).max(4_000),
 });
 
 export async function POST(request: Request) {
@@ -30,10 +31,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel consultar o agente.",
+        message: safeRouteError(error, "Nao foi possivel consultar o agente."),
       },
       { status: 400 },
     );

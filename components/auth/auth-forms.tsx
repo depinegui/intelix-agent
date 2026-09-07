@@ -233,6 +233,7 @@ export function RecoveryForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    toast.error("Recuperacao de senha indisponivel. Solicite atendimento ao administrador.");
     const formData = new FormData(event.currentTarget);
     const password = String(formData.get("password") ?? "");
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
@@ -270,7 +271,7 @@ export function RecoveryForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-3">
         <h2 className="text-3xl font-semibold text-foreground">
-          Crie sua nova senha
+          Recuperacao de senha
         </h2>
         <p className="text-sm leading-7 text-muted-foreground">
           Informe o e-mail cadastrado e defina uma nova senha para retomar o acesso à plataforma.
@@ -309,9 +310,10 @@ export function RecoveryForm() {
         type="submit"
         size="lg"
         className="h-10 w-full rounded-lg"
-        disabled={loading}
+        disabled
+        aria-busy={loading}
       >
-        {loading ? "Atualizando..." : "Atualizar senha"}
+        Recuperacao indisponivel
       </Button>
 
       <p className="text-sm text-muted-foreground">

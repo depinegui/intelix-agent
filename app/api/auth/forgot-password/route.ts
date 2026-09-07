@@ -1,24 +1,12 @@
 import { NextResponse } from "next/server";
-import { recoverPassword } from "@/services/auth-service";
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    await recoverPassword(body);
-
-    return NextResponse.json({
-      ok: true,
-      message: "Senha atualizada com sucesso.",
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel redefinir a senha.",
-      },
-      { status: 400 },
-    );
-  }
+export async function POST() {
+  // Nao existe provedor de e-mail/token configurado. Alterar senha apenas com
+  // e-mail permitiria tomada de conta, por isso a recuperacao fica desativada.
+  return NextResponse.json(
+    {
+      message:
+        "Recuperacao de senha indisponivel. Solicite atendimento ao administrador.",
+    },
+    { status: 503 },
+  );
 }

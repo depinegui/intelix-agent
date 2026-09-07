@@ -7,6 +7,7 @@ import {
   BookOpen,
   BotMessageSquare,
   LayoutDashboard,
+  ClipboardList,
   LogOut,
   PlusSquare,
   Settings,
@@ -64,6 +65,12 @@ const navItems: Array<{
     label: "Usuários",
     icon: Users,
     permission: "MANAGE_USERS",
+  },
+  {
+    href: "/auditoria",
+    label: "Auditoria",
+    icon: ClipboardList,
+    permission: "VIEW_AUDIT",
   },
   {
     href: "/configuracoes",

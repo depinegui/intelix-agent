@@ -4,6 +4,7 @@ import {
   getSessionCookieOptions,
 } from "@/lib/auth";
 import { AUTH_COOKIE_NAME } from "@/lib/constants";
+import { safeRouteError } from "@/lib/api-error";
 import { createAuditLogSafely } from "@/services/audit-service";
 import { loginUser } from "@/services/auth-service";
 
@@ -15,14 +16,11 @@ export async function POST(request: Request) {
 
     await createAuditLogSafely({
       user,
-      action: "UPDATE",
+      action: "LOGIN",
       entityType: "USER",
       entityId: user.id,
       description: "Login realizado no Intelix.",
-      metadata: {
-        event: "LOGIN",
-        role: user.role,
-      },
+      metadata: { role: user.role },
     });
 
     const response = NextResponse.json({ user });
@@ -37,10 +35,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel fazer login.",
+        message: safeRouteError(error, "Nao foi possivel fazer login."),
       },
       { status: 400 },
     );

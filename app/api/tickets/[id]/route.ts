@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/session";
+import { safeRouteError } from "@/lib/api-error";
 import { hasPermission } from "@/lib/permissions";
 import { createAuditLogSafely } from "@/services/audit-service";
 import { updateTicketStatus } from "@/services/ticket-service";
@@ -14,7 +15,7 @@ const updateSchema = z.object({
     "ESCALADO",
     "FECHADO",
   ]),
-  note: z.string().optional(),
+  note: z.string().trim().max(1_000).optional(),
 });
 
 export async function PATCH(
@@ -61,10 +62,7 @@ export async function PATCH(
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel atualizar o chamado.",
+        message: safeRouteError(error, "Nao foi possivel atualizar o chamado."),
       },
       { status: 400 },
     );

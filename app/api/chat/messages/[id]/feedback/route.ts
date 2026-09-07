@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/session";
+import { safeRouteError } from "@/lib/api-error";
 import { hasPermission } from "@/lib/permissions";
 import { createAuditLogSafely } from "@/services/audit-service";
 import { updateChatMessageFeedback } from "@/services/chat-service";
@@ -82,10 +83,7 @@ export async function PATCH(
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel salvar o feedback.",
+        message: safeRouteError(error, "Nao foi possivel salvar o feedback."),
       },
       { status: 400 },
     );

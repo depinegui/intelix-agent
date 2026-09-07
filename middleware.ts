@@ -8,6 +8,7 @@ const protectedPrefixes = [
   "/chamados",
   "/base-conhecimento",
   "/configuracoes",
+  "/auditoria",
 ];
 
 export function middleware(request: NextRequest) {
@@ -36,5 +37,6 @@ export const config = {
     "/chamados/:path*",
     "/base-conhecimento/:path*",
     "/configuracoes/:path*",
+    "/auditoria/:path*",
   ],
 };

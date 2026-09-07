@@ -33,6 +33,7 @@ yarn-error.log*
 
 # env files
 .env*
+!.env.example
 
 # generated local knowledge index
 knowledge/.index/

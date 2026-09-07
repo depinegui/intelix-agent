@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import { safeRouteError } from "@/lib/api-error";
 import { hasPermission } from "@/lib/permissions";
 import { createAuditLogSafely } from "@/services/audit-service";
 import {
@@ -41,10 +42,7 @@ export async function PUT(
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel atualizar o documento.",
+        message: safeRouteError(error, "Nao foi possivel atualizar o documento."),
       },
       { status: 400 },
     );
@@ -84,10 +82,7 @@ export async function DELETE(
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel remover o documento.",
+        message: safeRouteError(error, "Nao foi possivel remover o documento."),
       },
       { status: 400 },
     );

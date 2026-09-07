@@ -10,7 +10,8 @@ export type Permission =
   | "MANAGE_KNOWLEDGE"
   | "DELETE_KNOWLEDGE"
   | "VIEW_SETTINGS"
-  | "MANAGE_USERS";
+  | "MANAGE_USERS"
+  | "VIEW_AUDIT";
 
 const allPermissions: Permission[] = [
   "VIEW_DASHBOARD",
@@ -23,6 +24,7 @@ const allPermissions: Permission[] = [
   "DELETE_KNOWLEDGE",
   "VIEW_SETTINGS",
   "MANAGE_USERS",
+  "VIEW_AUDIT",
 ];
 
 const permissionsByRole: Record<UserRole, Permission[]> = {
