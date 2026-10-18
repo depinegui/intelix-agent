@@ -162,8 +162,8 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
             <TableRow>
               <TableHead>Protocolo</TableHead>
               <TableHead>Titulo</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Prioridade</TableHead>
+              <TableHead className="hidden 2xl:table-cell">Categoria</TableHead>
+              <TableHead className="hidden 2xl:table-cell">Prioridade</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Atualizado em</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -193,8 +193,12 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
                     </p>
                   </div>
                 </TableCell>
-                <TableCell>{categoryLabels[ticket.category]}</TableCell>
-                <TableCell>{priorityLabels[ticket.priority]}</TableCell>
+                <TableCell className="hidden 2xl:table-cell">
+                  {categoryLabels[ticket.category]}
+                </TableCell>
+                <TableCell className="hidden 2xl:table-cell">
+                  {priorityLabels[ticket.priority]}
+                </TableCell>
                 <TableCell>
                   <Badge className={badgeTone(ticket.status)} variant="secondary">
                     {statusLabels[ticket.status]}
