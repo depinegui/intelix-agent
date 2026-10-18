@@ -137,7 +137,7 @@ export function AppShell({
   return (
     <div className="min-h-screen p-3 md:p-4">
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-[1800px] gap-3">
-        <aside className="sidebar-shell hidden w-[252px] rounded-2xl border border-white/8 p-4 text-sidebar-foreground shadow-[0_2px_8px_rgba(20,31,47,0.14)] lg:flex lg:flex-col">
+        <aside className="sidebar-shell sticky top-3 hidden h-[calc(100vh-1.5rem)] w-[252px] shrink-0 rounded-2xl border border-white/8 p-4 text-sidebar-foreground shadow-[0_2px_8px_rgba(20,31,47,0.14)] lg:flex lg:flex-col">
           <BrandMark inverted />
 
           <nav className="mt-8 space-y-1">
