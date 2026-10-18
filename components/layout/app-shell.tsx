@@ -73,6 +73,12 @@ const navItems: Array<{
     permission: "VIEW_AUDIT",
   },
   {
+    href: "/avaliacoes",
+    label: "Avaliações",
+    icon: ClipboardList,
+    permission: "VIEW_EVALUATIONS",
+  },
+  {
     href: "/configuracoes",
     label: "Configurações",
     icon: Settings,

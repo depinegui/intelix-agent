@@ -107,13 +107,29 @@ model User {
   role                UserRole           @default(ANALYST)
   isActive            Boolean            @default(true)
   lastLoginAt         DateTime?
+  feedbackEligible    Boolean            @default(false)
   resetToken          String?
   resetTokenExpiresAt DateTime?
   tickets             Ticket[]           @relation("RequesterTickets")
   conversations       ChatConversation[]
+  productEvaluation   ProductEvaluationResponse?
   uploadedKnowledgeDocuments KnowledgeDocument[] @relation("KnowledgeUploader")
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
+}
+
+model ProductEvaluationResponse {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  easeOfUse Int
+  relevance Int
+  responseTime Int
+  reuseIntent Int
+  comment   String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Ticket {
