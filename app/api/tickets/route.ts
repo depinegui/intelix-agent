@@ -16,7 +16,9 @@ export async function GET() {
     return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
   }
 
-  const tickets = await listTickets();
+  const tickets = await listTickets({
+    requesterId: user.role === "ADMIN" ? undefined : user.id,
+  });
   return NextResponse.json({ tickets });
 }
 

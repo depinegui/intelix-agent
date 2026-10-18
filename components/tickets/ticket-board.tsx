@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { TicketRecord, TicketStatus } from "@/types";
 import {
   categoryLabels,
@@ -67,12 +68,17 @@ function badgeTone(status: TicketStatus) {
 
 interface TicketBoardProps {
   initialTickets: TicketRecord[];
+  canFilterByRequester: boolean;
 }
 
-export function TicketBoard({ initialTickets }: TicketBoardProps) {
+export function TicketBoard({
+  initialTickets,
+  canFilterByRequester,
+}: TicketBoardProps) {
   const [tickets, setTickets] = useState(initialTickets);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("TODOS");
+  const [requesterFilter, setRequesterFilter] = useState("TODOS");
   const [viewingTicket, setViewingTicket] = useState<TicketRecord | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<TicketRecord | null>(null);
   const [nextStatus, setNextStatus] = useState<TicketStatus>("EM_ANDAMENTO");
@@ -84,11 +90,20 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
     return tickets.filter((ticket) => {
       const matchesStatus =
         statusFilter === "TODOS" || ticket.status === statusFilter;
+      const matchesRequester =
+        requesterFilter === "TODOS" || ticket.requesterId === requesterFilter;
       const haystack = `${ticket.protocol} ${ticket.title} ${ticket.description}`.toLowerCase();
       const matchesSearch = haystack.includes(deferredSearch.toLowerCase());
-      return matchesStatus && matchesSearch;
+      return matchesStatus && matchesRequester && matchesSearch;
     });
-  }, [deferredSearch, statusFilter, tickets]);
+  }, [deferredSearch, requesterFilter, statusFilter, tickets]);
+
+  const requesters = useMemo(
+    () => Array.from(
+      new Map(tickets.map((ticket) => [ticket.requesterId, ticket.requesterName])).entries(),
+    ).sort(([, leftName], [, rightName]) => leftName.localeCompare(rightName, "pt-BR")),
+    [tickets],
+  );
 
   async function handleUpdate() {
     if (!selectedTicket) {
@@ -131,7 +146,14 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
   return (
     <>
       <div className="surface-card overflow-hidden">
-        <div className="grid gap-3 border-b border-border/70 bg-muted/20 p-4 md:grid-cols-[1fr_210px] md:p-5">
+        <div
+          className={cn(
+            "grid gap-3 border-b border-border/70 bg-muted/20 p-4 md:p-5",
+            canFilterByRequester
+              ? "md:grid-cols-[minmax(0,1fr)_210px_230px]"
+              : "md:grid-cols-[minmax(0,1fr)_210px]",
+          )}
+        >
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -154,6 +176,24 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
               ))}
             </SelectContent>
           </Select>
+          {canFilterByRequester && (
+            <Select
+              value={requesterFilter}
+              onValueChange={(value) => setRequesterFilter(value ?? "TODOS")}
+            >
+              <SelectTrigger className="h-10 w-full rounded-lg bg-background/70">
+                <SelectValue placeholder="Filtrar solicitante" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos os usuários</SelectItem>
+                {requesters.map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -166,7 +206,9 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
               <TableHead className="hidden 2xl:table-cell">Prioridade</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Atualizado em</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="sticky right-0 z-20 border-l border-border/70 bg-card text-right">
+                Ações
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -182,7 +224,7 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
                     setViewingTicket(ticket);
                   }
                 }}
-                className="cursor-pointer transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                className="group cursor-pointer transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               >
                 <TableCell className="font-semibold">{ticket.protocol}</TableCell>
                 <TableCell>
@@ -205,31 +247,35 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
                   </Badge>
                 </TableCell>
                 <TableCell>{formatDateTime(ticket.updatedAt)}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
+                <TableCell className="sticky right-0 z-10 border-l border-border/70 bg-card text-right transition-colors group-hover:bg-muted/35">
+                  <div className="flex justify-end gap-1">
                     <Button
                       variant="outline"
-                      className="h-8 rounded-md"
+                      className="size-8 rounded-md px-0 2xl:h-8 2xl:w-auto 2xl:px-3"
                       onClick={(event) => {
                         event.stopPropagation();
                         setViewingTicket(ticket);
                       }}
+                      aria-label="Ver detalhes do chamado"
+                      title="Ver detalhes do chamado"
                     >
                       <Eye className="size-4" />
-                      Ver
+                      <span className="hidden 2xl:inline">Ver</span>
                     </Button>
                     <Button
                       variant="outline"
-                      className="h-8 rounded-md"
+                      className="size-8 rounded-md px-0 2xl:h-8 2xl:w-auto 2xl:px-3"
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedTicket(ticket);
                         setNextStatus(ticket.status);
                         setNote("");
                       }}
+                      aria-label="Editar chamado"
+                      title="Editar chamado"
                     >
                       <Edit3 className="size-4" />
-                      Editar
+                      <span className="hidden 2xl:inline">Editar</span>
                     </Button>
                   </div>
                 </TableCell>

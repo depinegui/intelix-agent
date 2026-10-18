@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/session";
 import { safeRouteError } from "@/lib/api-error";
 import { hasPermission } from "@/lib/permissions";
 import { createAuditLogSafely } from "@/services/audit-service";
-import { updateTicketStatus } from "@/services/ticket-service";
+import { listTickets, updateTicketStatus } from "@/services/ticket-service";
 
 const updateSchema = z.object({
   status: z.enum([
@@ -36,6 +36,14 @@ export async function PATCH(
     const body = await request.json();
     const data = updateSchema.parse(body);
     const { id } = await params;
+    const visibleTickets = await listTickets({
+      requesterId: user.role === "ADMIN" ? undefined : user.id,
+    });
+
+    if (!visibleTickets.some((ticket) => ticket.id === id)) {
+      return NextResponse.json({ message: "Acesso negado." }, { status: 403 });
+    }
+
     const { ticket, previousStatus } = await updateTicketStatus(
       id,
       data.status,

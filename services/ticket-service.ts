@@ -71,24 +71,31 @@ export function serializeTicket(record: {
   };
 }
 
-export async function listTickets(limit?: number) {
+export async function listTickets(input?: number | {
+  limit?: number;
+  requesterId?: string;
+}) {
+  const options = typeof input === "number" ? { limit: input } : input ?? {};
+
   if (prisma) {
     const tickets = await prisma.ticket.findMany({
+      where: options.requesterId ? { requesterId: options.requesterId } : undefined,
       include: {
         histories: {
           orderBy: { createdAt: "desc" },
         },
       },
       orderBy: { updatedAt: "desc" },
-      ...(limit ? { take: limit } : {}),
+      ...(options.limit ? { take: options.limit } : {}),
     });
 
     return tickets.map(serializeTicket);
   }
 
   return [...demoStore.tickets]
+    .filter((ticket) => !options.requesterId || ticket.requesterId === options.requesterId)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-    .slice(0, limit);
+    .slice(0, options.limit);
 }
 
 export function getProtocolPreview() {
