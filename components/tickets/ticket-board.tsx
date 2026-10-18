@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Edit3 } from "lucide-react";
+import { BotMessageSquare, Clock3, Edit3, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { apiRequest } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +73,7 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
   const [tickets, setTickets] = useState(initialTickets);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("TODOS");
+  const [viewingTicket, setViewingTicket] = useState<TicketRecord | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<TicketRecord | null>(null);
   const [nextStatus, setNextStatus] = useState<TicketStatus>("EM_ANDAMENTO");
   const [note, setNote] = useState("");
@@ -111,6 +112,9 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
         current.map((ticket) =>
           ticket.id === payload.ticket.id ? payload.ticket : ticket,
         ),
+      );
+      setViewingTicket((current) =>
+        current?.id === payload.ticket.id ? payload.ticket : current,
       );
       toast.success("Chamado atualizado.");
       setSelectedTicket(null);
@@ -167,7 +171,19 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
           </TableHeader>
           <TableBody>
             {filteredTickets.map((ticket) => (
-              <TableRow key={ticket.id} className="transition-colors hover:bg-muted/35">
+              <TableRow
+                key={ticket.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setViewingTicket(ticket)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setViewingTicket(ticket);
+                  }
+                }}
+                className="cursor-pointer transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              >
                 <TableCell className="font-semibold">{ticket.protocol}</TableCell>
                 <TableCell>
                   <div className="space-y-1">
@@ -186,18 +202,32 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
                 </TableCell>
                 <TableCell>{formatDateTime(ticket.updatedAt)}</TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    className="h-8 rounded-md"
-                    onClick={() => {
-                      setSelectedTicket(ticket);
-                      setNextStatus(ticket.status);
-                      setNote("");
-                    }}
-                  >
-                    <Edit3 className="size-4" />
-                    Editar
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-8 rounded-md"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setViewingTicket(ticket);
+                      }}
+                    >
+                      <Eye className="size-4" />
+                      Ver
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-8 rounded-md"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedTicket(ticket);
+                        setNextStatus(ticket.status);
+                        setNote("");
+                      }}
+                    >
+                      <Edit3 className="size-4" />
+                      Editar
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -205,6 +235,80 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
         </Table>
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(viewingTicket)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewingTicket(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-xl p-0 sm:max-w-3xl">
+          {viewingTicket && (
+            <>
+              <DialogHeader className="border-b border-border/70 px-5 py-4 md:px-6">
+                <div className="flex flex-wrap items-center gap-2 pr-8">
+                  <DialogTitle>Chamado {viewingTicket.protocol}</DialogTitle>
+                  <Badge className={badgeTone(viewingTicket.status)} variant="secondary">
+                    {statusLabels[viewingTicket.status]}
+                  </Badge>
+                </div>
+                <DialogDescription>{viewingTicket.title}</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 px-5 py-5 md:px-6">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <DetailItem label="Categoria" value={categoryLabels[viewingTicket.category]} />
+                  <DetailItem label="Prioridade" value={priorityLabels[viewingTicket.priority]} />
+                  <DetailItem label="Solicitante" value={viewingTicket.requesterName} />
+                </div>
+
+                <DetailSection icon={FileText} title="Descrição">
+                  <p className="whitespace-pre-wrap leading-6 text-muted-foreground">
+                    {viewingTicket.description}
+                  </p>
+                </DetailSection>
+
+                {viewingTicket.aiSummary && (
+                  <DetailSection icon={BotMessageSquare} title="Resumo da IA">
+                    <p className="whitespace-pre-wrap leading-6 text-muted-foreground">
+                      {viewingTicket.aiSummary}
+                    </p>
+                  </DetailSection>
+                )}
+
+                {viewingTicket.resolutionNotes && (
+                  <DetailSection icon={FileText} title="Solução registrada">
+                    <p className="whitespace-pre-wrap leading-6 text-muted-foreground">
+                      {viewingTicket.resolutionNotes}
+                    </p>
+                  </DetailSection>
+                )}
+
+                <DetailSection icon={Clock3} title="Histórico">
+                  <div className="space-y-3">
+                    {viewingTicket.histories.map((history) => (
+                      <div key={history.id} className="rounded-lg border border-border/70 bg-muted/25 p-3.5">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <p className="font-medium text-foreground">{history.action}</p>
+                          <p className="text-xs text-muted-foreground">{formatDateTime(history.createdAt)}</p>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">{history.actorName}</p>
+                        {history.note && (
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                            {history.note}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </DetailSection>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(selectedTicket)}
@@ -263,5 +367,34 @@ export function TicketBoard({ initialTickets }: TicketBoardProps) {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-muted/25 p-3">
+      <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">{label}</p>
+      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function DetailSection({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof FileText;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <h3 className="flex items-center gap-2 font-semibold text-foreground">
+        <Icon className="size-4 text-primary" />
+        {title}
+      </h3>
+      {children}
+    </section>
   );
 }
