@@ -31,7 +31,11 @@ const INSUFFICIENT_RESPONSE =
 // uma resposta final.
 //
 // Esse valor deve ser ajustado com os testes reais da Microsys.
-const MINIMUM_CONTEXT_SCORE = 0.60;
+// Consultas curtas e diretas, como "ajuda com markup", podem recuperar uma
+// fonte com correspondência lexical exata um pouco abaixo de 0,60. O piso de
+// 0,55 continua acima do filtro do RAG e permite que o agente avalie esse
+// contexto antes de decidir se ele sustenta uma resposta.
+const MINIMUM_CONTEXT_SCORE = 0.55;
 
 
 const AGENT_INSTRUCTIONS = `
