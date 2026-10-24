@@ -24,13 +24,25 @@ export async function getProductEvaluationStatus(userId: string) {
     where: { id: userId },
     select: {
       feedbackEligible: true,
-      productEvaluation: { select: { id: true } },
+      feedbackCampaign: true,
     },
   });
 
+  const evaluation = user
+    ? await client.productEvaluationResponse.findUnique({
+        where: {
+          userId_campaign: {
+            userId,
+            campaign: user.feedbackCampaign,
+          },
+        },
+        select: { id: true },
+      })
+    : null;
+
   return {
     eligible: user?.feedbackEligible ?? false,
-    answered: Boolean(user?.productEvaluation),
+    answered: Boolean(evaluation),
   };
 }
 
@@ -56,9 +68,19 @@ export async function submitProductEvaluation(
   }
 
   try {
+    const user = await client.user.findUnique({
+      where: { id: userId },
+      select: { feedbackCampaign: true },
+    });
+
+    if (!user) {
+      throw new Error("Usuário não encontrado.");
+    }
+
     return await client.productEvaluationResponse.create({
       data: {
         userId,
+        campaign: user.feedbackCampaign,
         easeOfUse: data.easeOfUse,
         relevance: data.relevance,
         responseTime: data.responseTime,
@@ -99,15 +121,18 @@ export async function getProductEvaluationSummary() {
     client.productEvaluationResponse.findMany({
       include: {
         user: {
-          select: { name: true, email: true },
+          select: { name: true, email: true, feedbackCampaign: true },
         },
       },
       orderBy: { createdAt: "desc" },
     }),
   ]);
 
-  const responseCount = records.length;
-  const totals = records.reduce(
+  const activeRecords = records.filter(
+    (response) => response.campaign === response.user.feedbackCampaign,
+  );
+  const responseCount = activeRecords.length;
+  const totals = activeRecords.reduce(
     (current, response) => ({
       easeOfUse: current.easeOfUse + response.easeOfUse,
       relevance: current.relevance + response.relevance,
@@ -133,7 +158,7 @@ export async function getProductEvaluationSummary() {
               ).toFixed(1),
             ),
     })),
-    responses: records.map((response) => ({
+    responses: activeRecords.map((response) => ({
       id: response.id,
       userName: response.user.name,
       userEmail: response.user.email,
