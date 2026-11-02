@@ -1,3 +1,4 @@
+import { needsPromptClarification } from "@/agents/intelix-support-agent";
 import { getSupportAgent } from "@/agents/registry";
 import { Prisma } from "@prisma/client";
 import { demoStore } from "@/database/demo-store";
@@ -254,9 +255,12 @@ export async function sendChatMessage(
 
   const sanitizedPrompt = redactSensitiveData(trimmedPrompt);
   const responseStartedAt = performance.now();
-  const indexedDocuments = await searchKnowledgeBase(sanitizedPrompt, 4);
+  const needsClarification = needsPromptClarification(sanitizedPrompt);
+  const indexedDocuments = needsClarification
+    ? []
+    : await searchKnowledgeBase(sanitizedPrompt, 4);
   const shouldUseLegacyKnowledge =
-    indexedDocuments.length === 0 && !(await hasIndexedKnowledgeBase());
+    !needsClarification && indexedDocuments.length === 0 && !(await hasIndexedKnowledgeBase());
   const relatedDocuments =
     !shouldUseLegacyKnowledge
       ? indexedDocuments
@@ -317,9 +321,8 @@ export async function sendChatMessage(
       Math.round(performance.now() - responseStartedAt),
     );
     const retrievedSourcesCount = reply.citations.length;
-    // A ausencia de citacoes representa que nenhum contexto foi efetivamente
-    // usado pela resposta; nao inferimos esse estado pelo texto gerado.
-    const withoutContext = retrievedSourcesCount === 0;
+    // Pedidos de esclarecimento nao sao falhas de cobertura da base.
+    const withoutContext = reply.needsClarification ? undefined : retrievedSourcesCount === 0;
 
     const assistantMessage = await prisma.chatMessage.create({
       data: {
@@ -391,7 +394,7 @@ export async function sendChatMessage(
   );
   const retrievedSourcesCount = reply.citations.length;
   // Mantem a mesma semantica do PostgreSQL quando a aplicacao usa o fallback.
-  const withoutContext = retrievedSourcesCount === 0;
+  const withoutContext = reply.needsClarification ? undefined : retrievedSourcesCount === 0;
 
   const assistantMessage: ChatMessageRecord = {
     id: `msg_${crypto.randomUUID().slice(0, 8)}`,

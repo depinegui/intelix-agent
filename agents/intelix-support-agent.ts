@@ -17,13 +17,14 @@ interface AgentContext {
 
 interface AgentResponse {
   content: string;
-  confidence: number;
+  confidence?: number;
+  needsClarification?: boolean;
   citations: ChatCitation[];
 }
 
 
 const INSUFFICIENT_RESPONSE =
-  "Não possuo dados suficientes na base de conhecimento para responder com segurança.";
+  "Não encontrei informações suficientes para responder com segurança. Você pode fornecer mais detalhes ou encaminhar para atendimento.";
 
 
 // O RAG possui um piso mais permissivo para recuperar candidatos,
@@ -181,10 +182,31 @@ function isInsufficientAnswer(
 }
 
 
+export function needsPromptClarification(prompt: string) {
+  const normalized = prompt
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Match only generic messages; short technical questions still use the base.
+  return !normalized || /^(?:(?:oi|ola|opa|hello|bom dia|boa tarde|boa noite)(?: tudo bem)?|tudo bem|teste(?: de (?:chat|envio|mensagem))?|testando|testando [123](?: [123])*|ajuda|me ajuda|preciso de ajuda|pode me ajudar|socorro)$/.test(normalized);
+}
+
 export class IntelixSupportAgent {
   async respond(
     context: AgentContext,
   ): Promise<AgentResponse> {
+    if (needsPromptClarification(context.prompt)) {
+      return {
+        content: "Olá! Como posso ajudar? Descreva sua dúvida ou o erro que está acontecendo.",
+        citations: [],
+        needsClarification: true,
+      };
+    }
+
     // Barreira 1:
     // nenhum contexto foi recuperado.
     if (
