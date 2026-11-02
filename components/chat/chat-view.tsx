@@ -226,7 +226,7 @@ export function ChatView({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!prompt.trim()) {
+    if (!prompt.trim() || sending || openingConversationId) {
       return;
     }
 
@@ -406,10 +406,16 @@ export function ChatView({
         </Card>
 
         <Card className="border-border/80 shadow-sm">
-          <CardContent className="flex h-[calc(100vh-330px)] min-h-[540px] flex-col px-0 pb-0">
+          <CardContent
+            className={`flex flex-col px-0 pb-0 ${
+              messages.length
+                ? "h-[calc(100vh-330px)] min-h-[540px]"
+                : "h-auto"
+            }`}
+          >
             <div
               ref={scrollRef}
-              className="flex-1 space-y-5 overflow-y-auto px-5 py-5"
+              className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5"
             >
               {messages.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-muted/25 p-5 text-sm leading-6 text-muted-foreground">
@@ -575,6 +581,18 @@ export function ChatView({
                 <Textarea
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      if (!event.repeat) {
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }
+                  }}
                   rows={4}
                   className="min-h-24 rounded-lg border-border bg-background/75"
                   placeholder='Ex.: "Estou com erro ao emitir NF-e. Aparece a mensagem Rejeicao 539."'
@@ -582,7 +600,7 @@ export function ChatView({
 
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs leading-5 text-muted-foreground">
-                    As respostas utilizam o conteúdo disponível para atendimento.
+                    Enter para enviar · Shift + Enter para nova linha.
                   </p>
 
                   <Button
