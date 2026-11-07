@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
+import { MINIMUM_CONTEXT_SCORE } from "@/agents/intelix-support-agent";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -3224,12 +3225,52 @@ async function searchKnowledgeBaseWithDiagnostics(
     queryEmbedding[0];
 
 
-  return rankKnowledgeChunks(
+  const search = rankKnowledgeChunks(
     index,
     normalizedQuery,
     queryVector,
     limit,
   );
+
+  if ((search.results[0]?.score ?? 0) >= MINIMUM_CONTEXT_SCORE || limit <= 0) {
+    return search;
+  }
+
+  // Retry short requests such as "erro de DIFAL" with the technical term.
+  const genericTerms =
+    /^(?:oi|ola|estou|com|tendo|erro|falha|problema|duvida|sobre|ajuda|resolver|qual|esta|dando|aparece)$/;
+  const [keyword, ...otherTerms] = [...new Set(tokenize(normalizedQuery))].filter(
+    (term) => !genericTerms.test(term),
+  );
+  if (
+    !keyword ||
+    otherTerms.length > 0 ||
+    !/^[a-z][a-z0-9]{2,}$/.test(keyword) ||
+    keyword === normalizeForSearch(normalizedQuery)
+  ) {
+    return search;
+  }
+
+  const keywordChunks = index.chunks.filter((chunk) =>
+    tokenize(chunk.title).includes(keyword),
+  );
+  if (keywordChunks.length === 0) {
+    return search;
+  }
+
+  const [keywordVector] = await createEmbeddings([keyword]);
+  const keywordSearch = rankKnowledgeChunks(
+    { ...index, chunks: keywordChunks },
+    keyword,
+    keywordVector,
+    limit,
+  );
+  return (keywordSearch.results[0]?.score ?? 0) >= MINIMUM_CONTEXT_SCORE
+    ? {
+        ...keywordSearch,
+        diagnostic: { ...keywordSearch.diagnostic, query: normalizedQuery },
+      }
+    : search;
 }
 
 
