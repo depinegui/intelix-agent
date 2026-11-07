@@ -60,20 +60,19 @@ function formatSources(value: number | null) {
 
 export function DashboardView({ snapshot }: DashboardViewProps) {
   return (
-    <div className="grid gap-3">
-      <section className="grid gap-3 2xl:grid-cols-[1.45fr_0.55fr]">
-        <div className="grid content-start gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-2">
+    <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.45fr)]">
+      <section aria-label="Indicadores e atendimentos da semana" className="grid min-w-0 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {snapshot.metrics.map((metric) => (
             <Card
               key={metric.label}
-              size="sm"
-              className="metric-glow gap-2 shadow-sm"
+              className="metric-glow gap-2 py-3 shadow-sm"
             >
               <CardHeader className="gap-1 px-4">
                 <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">
                   {metric.label}
                 </CardDescription>
-                <CardTitle className="text-3xl font-semibold tracking-[-0.025em]">
+                <CardTitle className="text-2xl font-semibold tracking-[-0.025em]">
                   {metric.value}
                 </CardTitle>
               </CardHeader>
@@ -86,6 +85,70 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
           ))}
         </div>
 
+        <Card className="border-border/80 shadow-sm">
+          <CardHeader className="border-b border-border/70 px-5 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardDescription>Atendimentos da Semana</CardDescription>
+                <CardTitle className="text-xl font-semibold">
+                  Volume operacional
+                </CardTitle>
+              </div>
+              <div className="rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground">
+                <TrendingUp className="mr-2 inline size-4" />
+                {snapshot.weeklyPeakLabel}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="h-[320px] px-2 pb-3 md:px-3">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={snapshot.weeklyVolume}>
+                <defs>
+                  <linearGradient id="intelixPrimary" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="5%" stopColor="#178a98" stopOpacity={0.42} />
+                    <stop offset="95%" stopColor="#178a98" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="intelixSecondary" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="5%" stopColor="#34465d" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#34465d" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 6" stroke="#d8e1e7" />
+                <XAxis
+                  axisLine={false}
+                  dataKey="day"
+                  tickLine={false}
+                  tick={{ fill: "#6b7b8d", fontSize: 12 }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: "1px solid #d6e0e7",
+                    background: "#fbfcfd",
+                    boxShadow: "0 3px 10px rgba(31,45,61,0.08)",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="assisted"
+                  stroke="#178a98"
+                  fill="url(#intelixPrimary)"
+                  strokeWidth={3}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="escalated"
+                  stroke="#34465d"
+                  fill="url(#intelixSecondary)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section aria-label="Base de conhecimento e chamados recentes" className="grid min-w-0 gap-3">
         <Card className="border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)]">
           <CardHeader className="gap-2 px-5 pt-5">
             <div className="flex items-center justify-between gap-4">
@@ -152,70 +215,6 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="grid gap-3 2xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="border-border/80 shadow-sm">
-          <CardHeader className="border-b border-border/70 px-5 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <CardDescription>Atendimentos da Semana</CardDescription>
-                <CardTitle className="text-xl font-semibold">
-                  Volume operacional
-                </CardTitle>
-              </div>
-              <div className="rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground">
-                <TrendingUp className="mr-2 inline size-4" />
-                {snapshot.weeklyPeakLabel}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="h-[320px] px-2 pb-3 md:px-3">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={snapshot.weeklyVolume}>
-                <defs>
-                  <linearGradient id="intelixPrimary" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="#178a98" stopOpacity={0.42} />
-                    <stop offset="95%" stopColor="#178a98" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="intelixSecondary" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="#34465d" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#34465d" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="4 6" stroke="#d8e1e7" />
-                <XAxis
-                  axisLine={false}
-                  dataKey="day"
-                  tickLine={false}
-                  tick={{ fill: "#6b7b8d", fontSize: 12 }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "1px solid #d6e0e7",
-                    background: "#fbfcfd",
-                    boxShadow: "0 3px 10px rgba(31,45,61,0.08)",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="assisted"
-                  stroke="#178a98"
-                  fill="url(#intelixPrimary)"
-                  strokeWidth={3}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="escalated"
-                  stroke="#34465d"
-                  fill="url(#intelixSecondary)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
           </CardContent>
         </Card>
 
