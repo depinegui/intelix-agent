@@ -156,10 +156,16 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
           <Textarea
             id="ticket-description"
             name="description"
+            minLength={12}
+            required
+            aria-describedby="ticket-description-help"
             rows={10}
             className="rounded-lg"
             placeholder="Descreva detalhadamente o problema encontrado, impacto no processo e evidencias ja coletadas."
           />
+          <p id="ticket-description-help" className="text-xs text-muted-foreground">
+            Informe pelo menos 12 caracteres.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-3">

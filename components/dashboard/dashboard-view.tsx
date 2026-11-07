@@ -65,8 +65,8 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
   );
 
   return (
-    <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.45fr)]">
-      <section aria-label="Indicadores e chamados" className="grid min-w-0 gap-3">
+    <div className={`grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.45fr)] ${hasWeeklyActivity ? "" : "xl:grid-rows-[min-content_auto]"}`}>
+      <section aria-label="Indicadores e atendimentos" className="grid min-w-0 gap-3">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {snapshot.metrics.map((metric) => (
             <Card
@@ -179,52 +179,9 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
             </CardContent>
           )}
         </Card>
-
-        <Card className="border-border/80 shadow-sm">
-          <CardHeader className="border-b border-border/70 px-5 py-4">
-            <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Chamados recentes</CardDescription>
-            <CardTitle className="text-xl font-semibold">
-              Últimos chamados atualizados
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2 px-5 py-4 md:grid-cols-2">
-            {snapshot.recentTickets.length === 0 && (
-              <p className="text-sm text-muted-foreground md:col-span-2">
-                Nenhum chamado recente para exibir.
-              </p>
-            )}
-            {snapshot.recentTickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="min-w-0 rounded-lg border border-border/70 bg-muted/30 p-3.5 transition-colors hover:bg-muted/55"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {ticket.protocol}
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-foreground">{ticket.title}</p>
-                  </div>
-                  <Badge
-                    className={ticketBadgeVariant(ticket.status)}
-                    variant="secondary"
-                  >
-                    {statusLabels[ticket.status]}
-                  </Badge>
-                </div>
-                <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">
-                  {ticket.description}
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Atualizado em {formatDateTime(ticket.updatedAt)}
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       </section>
 
-      <section aria-label="Base de conhecimento" className="grid min-w-0 gap-3">
+      <section aria-label="Base de conhecimento" className={`grid min-w-0 gap-3 ${hasWeeklyActivity ? "" : "xl:row-span-2"}`}>
         <Card className="border-border bg-card shadow-[0_1px_2px_rgba(31,45,61,0.035)]">
           <CardHeader className="gap-2 px-5 pt-5">
             <div className="flex items-center justify-between gap-4">
@@ -294,6 +251,49 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
           </CardContent>
         </Card>
       </section>
+
+      <Card className={`min-w-0 border-border/80 shadow-sm ${hasWeeklyActivity ? "xl:col-span-2" : ""}`}>
+        <CardHeader className="border-b border-border/70 px-5 py-4">
+          <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">Chamados recentes</CardDescription>
+          <CardTitle className="text-xl font-semibold">
+            Últimos chamados atualizados
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 px-5 py-4 md:grid-cols-2">
+          {snapshot.recentTickets.length === 0 && (
+            <p className="text-sm text-muted-foreground md:col-span-2">
+              Nenhum chamado recente para exibir.
+            </p>
+          )}
+          {snapshot.recentTickets.map((ticket) => (
+            <div
+              key={ticket.id}
+              className="min-w-0 rounded-lg border border-border/70 bg-muted/30 p-3.5 transition-colors hover:bg-muted/55"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {ticket.protocol}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-foreground">{ticket.title}</p>
+                </div>
+                <Badge
+                  className={ticketBadgeVariant(ticket.status)}
+                  variant="secondary"
+                >
+                  {statusLabels[ticket.status]}
+                </Badge>
+              </div>
+              <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">
+                {ticket.description}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Atualizado em {formatDateTime(ticket.updatedAt)}
+              </p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
