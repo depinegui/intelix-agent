@@ -129,7 +129,7 @@ export async function createTicket(
   options?: { chatEscalationMessageId?: string },
 ) {
   const data = ticketSchema.parse(input);
-  const requestedProtocol = data.protocol?.trim();
+  const requestedProtocol = data.protocol?.trim() || undefined;
   const now = new Date();
 
   /*

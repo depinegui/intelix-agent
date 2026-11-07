@@ -62,13 +62,14 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
   return (
     <div className="grid gap-3">
       <section className="grid gap-3 2xl:grid-cols-[1.45fr_0.55fr]">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid content-start gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-2">
           {snapshot.metrics.map((metric) => (
             <Card
               key={metric.label}
-              className="metric-glow min-h-40 shadow-sm"
+              size="sm"
+              className="metric-glow gap-2 shadow-sm"
             >
-              <CardHeader className="gap-2 px-4 pt-4">
+              <CardHeader className="gap-1 px-4">
                 <CardDescription className="text-xs font-semibold tracking-[0.08em] uppercase">
                   {metric.label}
                 </CardDescription>
@@ -76,7 +77,7 @@ export function DashboardView({ snapshot }: DashboardViewProps) {
                   {metric.value}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-4">
+              <CardContent className="px-4">
                 <p className="text-xs leading-5 text-muted-foreground">
                   {metric.detail}
                 </p>

@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import type { TicketRecord } from "@/types";
 
 const categories = [
   { value: "NF_E", label: "NF-e" },
@@ -51,10 +52,9 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
     setLoading(true);
 
     try {
-      await apiRequest("/api/tickets", {
+      const { ticket } = await apiRequest<{ ticket: TicketRecord }>("/api/tickets", {
         method: "POST",
         body: JSON.stringify({
-          protocol: String(formData.get("protocol") ?? ""),
           title: String(formData.get("title") ?? ""),
           description: String(formData.get("description") ?? ""),
           category,
@@ -62,7 +62,7 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
         }),
       });
 
-      toast.success("Chamado aberto com sucesso.");
+      toast.success(`Chamado ${ticket.protocol} aberto com sucesso.`);
       router.push("/chamados");
       router.refresh();
     } catch (error) {
@@ -95,10 +95,14 @@ export function NewTicketForm({ protocolPreview }: NewTicketFormProps) {
             <Label htmlFor="ticket-protocol">Protocolo</Label>
             <Input
               id="ticket-protocol"
-              name="protocol"
-              className="h-10 rounded-lg"
-              placeholder={protocolPreview}
+              className="h-10 rounded-lg bg-muted/40"
+              value={protocolPreview}
+              aria-describedby="ticket-protocol-help"
+              readOnly
             />
+            <p id="ticket-protocol-help" className="text-xs text-muted-foreground">
+              O número definitivo será gerado ao abrir o chamado.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Categoria</Label>

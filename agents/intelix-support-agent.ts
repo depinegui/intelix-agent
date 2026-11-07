@@ -36,7 +36,7 @@ const INSUFFICIENT_RESPONSE =
 // fonte com correspondência lexical exata um pouco abaixo de 0,60. O piso de
 // 0,55 continua acima do filtro do RAG e permite que o agente avalie esse
 // contexto antes de decidir se ele sustenta uma resposta.
-const MINIMUM_CONTEXT_SCORE = 0.55;
+export const MINIMUM_CONTEXT_SCORE = 0.55;
 
 
 const AGENT_INSTRUCTIONS = `
@@ -93,6 +93,8 @@ Possível causa:
 Solução:
 
 12. Preserve nomes técnicos, nomes de telas, configurações, parâmetros e comandos conforme sustentados pela base.
+
+13. Se o usuário mencionar um erro sem informar a mensagem ou a etapa, apresente as verificações pertinentes sustentadas pelos trechos e peça o detalhe necessário para identificar a causa.
 
 Seu objetivo principal é fornecer uma resposta fundamentada. É melhor informar que não há dados suficientes do que produzir uma resposta possivelmente incorreta.
 `;
